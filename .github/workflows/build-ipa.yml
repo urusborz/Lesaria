@@ -51,8 +51,9 @@ jobs:
 
           rm -rf Payload HomeUI.ipa
           mkdir -p "$APP_DIR"
-          cp "$EXECUTABLE_SRC" "$APP_DIR/Meine App"
-          chmod +x "$APP_DIR/Meine App"
+          cp "$EXECUTABLE_SRC" "$APP_DIR/HomeUI"
+          chmod +x "$APP_DIR/HomeUI"
+          printf 'APPL????' > "$APP_DIR/PkgInfo"
 
           cat > "$APP_DIR/Info.plist" <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -64,7 +65,7 @@ jobs:
               <key>CFBundleDisplayName</key>
               <string>Home UI</string>
               <key>CFBundleExecutable</key>
-              <string>Meine App</string>
+              <string>HomeUI</string>
               <key>CFBundleIdentifier</key>
               <string>com.urusborz.homeui</string>
               <key>CFBundleInfoDictionaryVersion</key>
