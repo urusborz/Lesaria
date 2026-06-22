@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var store: DataStore
     @State private var selectedMode: AppMode = .persoenlich
     @State private var selectedTab: TabItem = .startseite
+    @State private var showingBackup = false
 
     var body: some View {
         ZStack {
@@ -12,11 +13,23 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Mode Switcher at top
-                ModeSwitcherView(selectedMode: $selectedMode)
-                    .padding(.top, 56)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 8)
+                // Mode Switcher at top + backup access
+                HStack(spacing: 12) {
+                    ModeSwitcherView(selectedMode: $selectedMode)
+                    Button { showingBackup = true } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppTheme.textSecondary)
+                            .frame(width: 46, height: 40)
+                            .background(Color.white.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 56)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
 
                 // Main content area
                 ZStack {
@@ -48,6 +61,10 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedMode)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
+        .onAppear { store.bootstrapNotifications() }
+        .sheet(isPresented: $showingBackup) {
+            BackupSheet(isPresented: $showingBackup).environmentObject(store)
+        }
     }
 }
 

@@ -9,8 +9,13 @@ class DataStore: ObservableObject {
     @Published var notes: [Note] = []
     @Published var shoppingItems: [ShoppingItem] = []
     @Published var cleanTasks: [CleanTask] = []
-    @Published var prayers: [PrayerTime] = []
     @Published var habits: [Habit] = []
+
+    // Prayer done-state, keyed "yyyy-MM-dd|Fajr". Times themselves come from PrayerData.
+    @Published var prayerDone: [String: Bool] = [:]
+
+    // Whether daily prayer-time notifications are enabled.
+    @Published var prayerNotificationsEnabled: Bool = false
 
     // MARK: - Init
 
@@ -19,14 +24,14 @@ class DataStore: ObservableObject {
         resetHabitsIfNewDay()
     }
 
-    // MARK: - Computed: Personal / Family splits
+    // MARK: - Computed: Personal / Family splits (sorted)
 
-    var personalEvents: [CalendarEvent]  { events.filter { !$0.isFamily } }
-    var familyEvents: [CalendarEvent]    { events.filter { $0.isFamily } }
+    var personalEvents: [CalendarEvent]  { events.filter { !$0.isFamily }.sorted { $0.date < $1.date } }
+    var familyEvents: [CalendarEvent]    { events.filter { $0.isFamily }.sorted { $0.date < $1.date } }
     var personalReminders: [Reminder]    { reminders.filter { !$0.isFamily } }
     var familyReminders: [Reminder]      { reminders.filter { $0.isFamily } }
-    var personalNotes: [Note]            { notes.filter { !$0.isFamily } }
-    var familyNotes: [Note]              { notes.filter { $0.isFamily } }
+    var personalNotes: [Note]            { notes.filter { !$0.isFamily }.sorted { $0.date > $1.date } }
+    var familyNotes: [Note]              { notes.filter { $0.isFamily }.sorted { $0.date > $1.date } }
 
     // MARK: - Events
 
@@ -35,30 +40,106 @@ class DataStore: ObservableObject {
         save()
     }
 
-    func deleteEvents(_ offsets: IndexSet, from list: [CalendarEvent]) {
-        let ids = offsets.map { list[$0].id }
-        events.removeAll { ids.contains($0.id) }
+    func updateEvent(_ event: CalendarEvent) {
+        if let i = events.firstIndex(where: { $0.id == event.id }) {
+            events[i] = event
+            save()
+        }
+    }
+
+    func deleteEvent(id: UUID) {
+        events.removeAll { $0.id == id }
         save()
+    }
+
+    // MARK: - Event occurrences (recurrence expansion)
+
+    func eventOccurrences(_ list: [CalendarEvent], on day: Date) -> [EventOccurrence] {
+        let cal = Calendar.current
+        return list.compactMap { e -> EventOccurrence? in
+            guard let d = e.occurrence(on: day, calendar: cal) else { return nil }
+            return EventOccurrence(id: "\(e.id.uuidString)-\(Int(d.timeIntervalSince1970))", event: e, date: d)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    func upcomingEventOccurrences(_ list: [CalendarEvent], from start: Date = Date(),
+                                  days: Int = 60, limit: Int = 20) -> [EventOccurrence] {
+        let cal = Calendar.current
+        let startDay = cal.startOfDay(for: start)
+        var result: [EventOccurrence] = []
+        for offset in 0..<days {
+            guard let day = cal.date(byAdding: .day, value: offset, to: startDay) else { break }
+            for occ in eventOccurrences(list, on: day) where occ.date >= start {
+                result.append(occ)
+                if result.count >= limit { return result }
+            }
+        }
+        return result
+    }
+
+    func dayHasItems(_ list: [CalendarEvent], _ datedReminders: [Reminder], on day: Date) -> Bool {
+        let cal = Calendar.current
+        if list.contains(where: { $0.occurrence(on: day, calendar: cal) != nil }) { return true }
+        return datedReminders.contains { r in
+            guard let due = r.dueDate else { return false }
+            return cal.isDate(due, inSameDayAs: day)
+        }
     }
 
     // MARK: - Reminders
 
     func addReminder(_ reminder: Reminder) {
         reminders.append(reminder)
+        NotificationManager.shared.scheduleReminder(reminder)
         save()
     }
 
-    func toggleReminder(id: UUID) {
-        if let i = reminders.firstIndex(where: { $0.id == id }) {
-            reminders[i].isCompleted.toggle()
+    func updateReminder(_ reminder: Reminder) {
+        if let i = reminders.firstIndex(where: { $0.id == reminder.id }) {
+            reminders[i] = reminder
+            NotificationManager.shared.scheduleReminder(reminder)
             save()
         }
     }
 
-    func deleteReminders(_ offsets: IndexSet, from list: [Reminder]) {
-        let ids = offsets.map { list[$0].id }
-        reminders.removeAll { ids.contains($0.id) }
+    func deleteCompletedReminders(isFamily: Bool) {
+        reminders.removeAll { $0.isCompleted && $0.isFamily == isFamily }
         save()
+    }
+
+    func toggleReminder(id: UUID) {
+        Haptics.tap()
+        guard let i = reminders.firstIndex(where: { $0.id == id }) else { return }
+        // Repeating reminder being completed → roll forward instead of marking done.
+        if !reminders[i].isCompleted,
+           reminders[i].recurrence != .none,
+           let next = reminders[i].nextDue() {
+            reminders[i].dueDate = next
+            reminders[i].isCompleted = false
+        } else {
+            reminders[i].isCompleted.toggle()
+        }
+        NotificationManager.shared.scheduleReminder(reminders[i])  // cancels if completed
+        save()
+    }
+
+    func deleteReminder(id: UUID) {
+        reminders.removeAll { $0.id == id }
+        NotificationManager.shared.cancelReminder(id: id)
+        save()
+    }
+
+    // Sorted: undated last, otherwise by due date ascending.
+    func sortedReminders(_ list: [Reminder]) -> [Reminder] {
+        list.sorted { a, b in
+            switch (a.dueDate, b.dueDate) {
+            case let (x?, y?): return x < y
+            case (_?, nil):    return true
+            case (nil, _?):    return false
+            default:           return false
+            }
+        }
     }
 
     // MARK: - Notes
@@ -68,9 +149,15 @@ class DataStore: ObservableObject {
         save()
     }
 
-    func deleteNotes(_ offsets: IndexSet, from list: [Note]) {
-        let ids = offsets.map { list[$0].id }
-        notes.removeAll { ids.contains($0.id) }
+    func updateNote(_ note: Note) {
+        if let i = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[i] = note
+            save()
+        }
+    }
+
+    func deleteNote(id: UUID) {
+        notes.removeAll { $0.id == id }
         save()
     }
 
@@ -81,16 +168,23 @@ class DataStore: ObservableObject {
         save()
     }
 
+    func updateShoppingItem(_ item: ShoppingItem) {
+        if let i = shoppingItems.firstIndex(where: { $0.id == item.id }) {
+            shoppingItems[i] = item
+            save()
+        }
+    }
+
     func toggleShoppingItem(id: UUID) {
+        Haptics.tap()
         if let i = shoppingItems.firstIndex(where: { $0.id == id }) {
             shoppingItems[i].isChecked.toggle()
             save()
         }
     }
 
-    func deleteShoppingItems(_ offsets: IndexSet, from list: [ShoppingItem]) {
-        let ids = offsets.map { list[$0].id }
-        shoppingItems.removeAll { ids.contains($0.id) }
+    func deleteShoppingItem(id: UUID) {
+        shoppingItems.removeAll { $0.id == id }
         save()
     }
 
@@ -106,77 +200,199 @@ class DataStore: ObservableObject {
         save()
     }
 
-    func toggleCleanTask(id: UUID) {
+    func updateCleanTask(_ task: CleanTask) {
+        if let i = cleanTasks.firstIndex(where: { $0.id == task.id }) {
+            cleanTasks[i] = task
+            save()
+        }
+    }
+
+    // Mark a maintenance task as done now → resets its interval cycle.
+    func markCleanTaskDone(id: UUID) {
         if let i = cleanTasks.firstIndex(where: { $0.id == id }) {
-            cleanTasks[i].isCompleted.toggle()
-            if cleanTasks[i].isCompleted {
-                cleanTasks[i].lastDone = Date()
-            }
+            cleanTasks[i].lastDone = Date()
+            Haptics.success()
             save()
         }
     }
 
-    func deleteCleanTasks(_ offsets: IndexSet, from list: [CleanTask]) {
-        let ids = offsets.map { list[$0].id }
-        cleanTasks.removeAll { ids.contains($0.id) }
-        save()
-    }
+    var cleanTasksDue: [CleanTask] { cleanTasks.filter { $0.isDue() } }
 
-    // MARK: - Prayers
-
-    func togglePrayer(id: UUID) {
-        if let i = prayers.firstIndex(where: { $0.id == id }) {
-            prayers[i].isDone.toggle()
-            save()
-        }
-    }
-
-    func resetPrayers() {
-        for i in prayers.indices {
-            prayers[i].isDone = false
-        }
+    func deleteCleanTask(id: UUID) {
+        cleanTasks.removeAll { $0.id == id }
         save()
     }
 
     // MARK: - Habits
-
-    func toggleHabit(id: UUID) {
-        if let i = habits.firstIndex(where: { $0.id == id }) {
-            let wasDone = habits[i].isDone
-            habits[i].isDone.toggle()
-            if !wasDone {
-                habits[i].streak += 1
-                habits[i].lastDoneDate = Date()
-            } else {
-                habits[i].streak = max(0, habits[i].streak - 1)
-            }
-            save()
-        }
-    }
 
     func addHabit(_ habit: Habit) {
         habits.append(habit)
         save()
     }
 
-    func deleteHabits(_ offsets: IndexSet, from list: [Habit]) {
-        let ids = offsets.map { list[$0].id }
-        habits.removeAll { ids.contains($0.id) }
+    func updateHabit(_ habit: Habit) {
+        if let i = habits.firstIndex(where: { $0.id == habit.id }) {
+            habits[i] = habit
+            save()
+        }
+    }
+
+    func toggleHabit(id: UUID) {
+        Haptics.tap()
+        guard let i = habits.firstIndex(where: { $0.id == id }) else { return }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
+
+        if habits[i].isDone {
+            // Undo today's completion.
+            habits[i].isDone = false
+            habits[i].streak = max(0, habits[i].streak - 1)
+            habits[i].lastDoneDate = habits[i].streak > 0 ? yesterday : nil
+        } else {
+            // Complete today: continue streak if yesterday was done, else start new.
+            habits[i].isDone = true
+            if let last = habits[i].lastDoneDate, cal.isDate(last, inSameDayAs: yesterday) {
+                habits[i].streak += 1
+            } else {
+                habits[i].streak = 1
+            }
+            habits[i].lastDoneDate = today
+        }
         save()
+    }
+
+    func deleteHabit(id: UUID) {
+        habits.removeAll { $0.id == id }
+        save()
+    }
+
+    // MARK: - Prayers (live from PrayerData + stored done-state)
+
+    func prayerSlots(now: Date = Date()) -> [PrayerSlot] {
+        let raw = PrayerEngine.rawTimes(for: now)
+        let key = PrayerEngine.dateKey(now)
+        var slots: [PrayerSlot] = []
+        for (i, m) in PrayerEngine.meta.enumerated() where i < raw.count {
+            let time = PrayerEngine.dateFor(raw[i], on: now)
+            let done = prayerDone["\(key)|\(m.name)"] ?? false
+            slots.append(PrayerSlot(id: m.name, name: m.name, germanName: m.german,
+                                    time: time, isDone: done, isNext: false, isTrackable: m.trackable))
+        }
+        if let nextIdx = slots.firstIndex(where: { $0.isTrackable && $0.time > now }) {
+            slots[nextIdx].isNext = true
+        }
+        return slots
+    }
+
+    // Returns the upcoming prayer, rolling over to tomorrow's Fajr after Isha.
+    func nextPrayer(now: Date = Date()) -> (name: String, germanName: String, date: Date) {
+        let slots = prayerSlots(now: now)
+        if let s = slots.first(where: { $0.isTrackable && $0.time > now }) {
+            return (s.name, s.germanName, s.time)
+        }
+        let tomorrow = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: now) ?? now
+        let raw = PrayerEngine.rawTimes(for: tomorrow)
+        return ("Fajr", "Morgengebet", PrayerEngine.dateFor(raw[0], on: tomorrow))
+    }
+
+    func togglePrayer(name: String, on date: Date = Date()) {
+        Haptics.tap()
+        let key = "\(PrayerEngine.dateKey(date))|\(name)"
+        prayerDone[key] = !(prayerDone[key] ?? false)
+        save()
+    }
+
+    func setPrayerNotifications(_ enabled: Bool) {
+        prayerNotificationsEnabled = enabled
+        NotificationManager.shared.reschedulePrayers(enabled: enabled)
+        save()
+    }
+
+    // Called once at app start: request permission and refresh all scheduled notifications.
+    func bootstrapNotifications() {
+        NotificationManager.shared.requestAuthorization()
+        NotificationManager.shared.rescheduleAllReminders(reminders)
+        NotificationManager.shared.reschedulePrayers(enabled: prayerNotificationsEnabled)
+    }
+
+    // MARK: - Backup (Export / Import)
+
+    private func backupEncoder() -> JSONEncoder {
+        let e = JSONEncoder()
+        e.outputFormatting = [.prettyPrinted, .sortedKeys]
+        e.dateEncodingStrategy = .iso8601
+        return e
+    }
+    private func backupDecoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }
+
+    func exportJSON() -> String {
+        let payload = BackupPayload(events: events, reminders: reminders, notes: notes,
+                                    shoppingItems: shoppingItems, cleanTasks: cleanTasks,
+                                    habits: habits, prayerDone: prayerDone)
+        guard let data = try? backupEncoder().encode(payload),
+              let str = String(data: data, encoding: .utf8) else { return "" }
+        return str
+    }
+
+    func exportFileURL() -> URL? {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        let name = "MeineApp-Backup-\(f.string(from: Date())).json"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do {
+            try exportJSON().data(using: .utf8)?.write(to: url)
+            return url
+        } catch { return nil }
+    }
+
+    @discardableResult
+    func importJSON(_ string: String) -> Bool {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = trimmed.data(using: .utf8),
+              let payload = try? backupDecoder().decode(BackupPayload.self, from: data) else { return false }
+        events = payload.events
+        reminders = payload.reminders
+        notes = payload.notes
+        shoppingItems = payload.shoppingItems
+        cleanTasks = payload.cleanTasks
+        habits = payload.habits
+        prayerDone = payload.prayerDone
+        save()
+        bootstrapNotifications()
+        return true
+    }
+
+    func prayersDoneCount(on date: Date = Date()) -> Int {
+        prayerSlots(now: date).filter { $0.isTrackable && $0.isDone }.count
     }
 
     // MARK: - Day Reset (habits reset daily)
 
     private func resetHabitsIfNewDay() {
         let key = "lastHabitResetDate"
-        let today = Calendar.current.startOfDay(for: Date())
-        if let stored = UserDefaults.standard.object(forKey: key) as? Date {
-            if stored < today {
-                for i in habits.indices { habits[i].isDone = false }
-                UserDefaults.standard.set(today, forKey: key)
-                save()
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
+
+        if let stored = UserDefaults.standard.object(forKey: key) as? Date, stored < today {
+            for i in habits.indices {
+                habits[i].isDone = false
+                // Break the streak if the habit wasn't completed yesterday.
+                if let last = habits[i].lastDoneDate {
+                    if !cal.isDate(last, inSameDayAs: yesterday) && cal.startOfDay(for: last) < yesterday {
+                        habits[i].streak = 0
+                    }
+                } else {
+                    habits[i].streak = 0
+                }
             }
-        } else {
+            UserDefaults.standard.set(today, forKey: key)
+            save()
+        } else if UserDefaults.standard.object(forKey: key) == nil {
             UserDefaults.standard.set(today, forKey: key)
         }
     }
@@ -189,8 +405,9 @@ class DataStore: ObservableObject {
         encode(notes,         key: "notes")
         encode(shoppingItems, key: "shoppingItems")
         encode(cleanTasks,    key: "cleanTasks")
-        encode(prayers,       key: "prayers")
         encode(habits,        key: "habits")
+        encode(prayerDone,    key: "prayerDone")
+        UserDefaults.standard.set(prayerNotificationsEnabled, forKey: "prayerNotificationsEnabled")
     }
 
     private func load() {
@@ -201,8 +418,9 @@ class DataStore: ObservableObject {
         notes         = decode([Note].self,          key: "notes")         ?? (isFirstLaunch ? SeedData.notes : [])
         shoppingItems = decode([ShoppingItem].self,  key: "shoppingItems") ?? (isFirstLaunch ? SeedData.shoppingItems : [])
         cleanTasks    = decode([CleanTask].self,     key: "cleanTasks")    ?? (isFirstLaunch ? SeedData.cleanTasks : [])
-        prayers       = decode([PrayerTime].self,    key: "prayers")       ?? SeedData.prayers
         habits        = decode([Habit].self,         key: "habits")        ?? (isFirstLaunch ? SeedData.habits : [])
+        prayerDone    = decode([String: Bool].self,  key: "prayerDone")    ?? [:]
+        prayerNotificationsEnabled = UserDefaults.standard.bool(forKey: "prayerNotificationsEnabled")
 
         if isFirstLaunch {
             UserDefaults.standard.set(true, forKey: "hasLaunched")

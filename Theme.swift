@@ -7,6 +7,7 @@ struct AppTheme {
     static let backgroundPrimary = Color(red: 0.024, green: 0.027, blue: 0.035)       // #060607 OLED black
     static let backgroundSecondary = Color(red: 0.047, green: 0.051, blue: 0.063)     // deep charcoal
     static let backgroundTertiary = Color(red: 0.07, green: 0.075, blue: 0.09)        // card background
+    static let cardSolid = Color(red: 0.085, green: 0.09, blue: 0.105)                // opaque row card (for swipe)
 
     // Glass card
     static let glassBackground = Color.white.opacity(0.05)

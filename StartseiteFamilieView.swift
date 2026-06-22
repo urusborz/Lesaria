@@ -29,6 +29,9 @@ struct StartseiteFamilieView: View {
                 }
                 .padding(.top, 8)
 
+                // Family overview (connects shared areas)
+                familyOverview
+
                 // Shared appointments
                 sharedAppointments
 
@@ -48,19 +51,49 @@ struct StartseiteFamilieView: View {
         }
     }
 
+    // MARK: - Family Overview
+
+    private var familyOverview: some View {
+        let upcomingCount = store.upcomingEventOccurrences(store.familyEvents, from: Date(), days: 30, limit: 50).count
+        let openReminders = store.familyReminders.filter { !$0.isCompleted }.count
+        let totalShopping = store.shoppingItems.count
+        let checkedShopping = store.shoppingItems.filter { $0.isChecked }.count
+        let openShopping = totalShopping - checkedShopping
+        let notesCount = store.familyNotes.count
+        let shoppingProgress = totalShopping == 0 ? 0 : Double(checkedShopping) / Double(totalShopping)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "Familien-Überblick")
+            HStack(spacing: 18) {
+                CircularProgressRing(progress: shoppingProgress,
+                                     color: AppTheme.accentPurple,
+                                     centerTop: "\(checkedShopping)/\(totalShopping)",
+                                     centerBottom: "Einkauf")
+                VStack(spacing: 12) {
+                    MiniStat(label: "Termine demnächst", value: "\(upcomingCount)", color: AppTheme.accentPurple)
+                    MiniStat(label: "Offene Erinnerungen", value: "\(openReminders)", color: AppTheme.accentBlue)
+                    MiniStat(label: "Einkauf offen", value: "\(openShopping)", color: AppTheme.accentAmber)
+                    MiniStat(label: "Notizen", value: "\(notesCount)", color: AppTheme.accentGreen)
+                }
+            }
+        }
+        .glassCard()
+    }
+
     private var sharedAppointments: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let upcoming = store.upcomingEventOccurrences(store.familyEvents, from: Date(), days: 60, limit: 3)
+        return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Gemeinsame Termine")
-            if store.familyEvents.isEmpty {
+            if upcoming.isEmpty {
                 Text("Noch keine Termine").font(.system(size: 13)).foregroundColor(AppTheme.textTertiary)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(store.familyEvents.prefix(3)) { event in
+                    ForEach(upcoming) { occ in
                         HStack(spacing: 12) {
                             Rectangle().fill(AppTheme.accentPurple).frame(width: 3, height: 38).clipShape(Capsule())
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(event.title).font(.system(size: 14, weight: .semibold)).foregroundColor(AppTheme.textPrimary)
-                                Text(eventLabel(event.date)).font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
+                                Text(occ.event.title).font(.system(size: 14, weight: .semibold)).foregroundColor(AppTheme.textPrimary).lineLimit(1)
+                                Text(eventLabel(occ.event, occ.date)).font(.system(size: 12)).foregroundColor(AppTheme.textSecondary)
                             }
                             Spacer()
                         }
@@ -73,21 +106,25 @@ struct StartseiteFamilieView: View {
             }
         }
         .glassCard()
+        .contentShape(Rectangle())
         .onTapGesture { withAnimation { selectedTab = .kalender } }
     }
 
     private var sharedReminders: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let open = store.sortedReminders(store.familyReminders.filter { !$0.isCompleted })
+        return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Erinnerungen")
-            let open = store.familyReminders.filter { !$0.isCompleted }
             if open.isEmpty {
                 Text("Alles erledigt").font(.system(size: 13)).foregroundColor(AppTheme.textTertiary).padding(.vertical, 4)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     ForEach(open.prefix(3)) { r in
                         HStack(spacing: 10) {
-                            Image(systemName: "circle").font(.system(size: 14)).foregroundColor(AppTheme.textTertiary)
-                            Text(r.title).font(.system(size: 13, weight: .medium)).foregroundColor(AppTheme.textPrimary)
+                            Button { store.toggleReminder(id: r.id) } label: {
+                                Image(systemName: "circle").font(.system(size: 15)).foregroundColor(AppTheme.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                            Text(r.title).font(.system(size: 13, weight: .medium)).foregroundColor(AppTheme.textPrimary).lineLimit(1)
                             Spacer()
                         }
                     }
@@ -95,21 +132,25 @@ struct StartseiteFamilieView: View {
             }
         }
         .glassCard().frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .onTapGesture { withAnimation { selectedTab = .erinnerungen } }
     }
 
     private var shoppingPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let open = store.shoppingItems.filter { !$0.isChecked }
+        return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Einkauf")
-            let open = store.shoppingItems.filter { !$0.isChecked }
             if open.isEmpty {
                 Text("Liste leer").font(.system(size: 13)).foregroundColor(AppTheme.textTertiary).padding(.vertical, 4)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     ForEach(open.prefix(3)) { item in
                         HStack(spacing: 10) {
-                            Image(systemName: "circle").font(.system(size: 14)).foregroundColor(AppTheme.textTertiary)
-                            Text(item.name).font(.system(size: 13, weight: .medium)).foregroundColor(AppTheme.textPrimary)
+                            Button { store.toggleShoppingItem(id: item.id) } label: {
+                                Image(systemName: "circle").font(.system(size: 15)).foregroundColor(AppTheme.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                            Text(item.name).font(.system(size: 13, weight: .medium)).foregroundColor(AppTheme.textPrimary).lineLimit(1)
                             Spacer()
                             if !item.quantity.isEmpty {
                                 Text(item.quantity).font(.system(size: 11)).foregroundColor(AppTheme.textTertiary)
@@ -120,6 +161,7 @@ struct StartseiteFamilieView: View {
             }
         }
         .glassCard().frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .onTapGesture { withAnimation { selectedTab = .tracker } }
     }
 
@@ -135,7 +177,7 @@ struct StartseiteFamilieView: View {
                             Text(note.title).font(.system(size: 14, weight: .semibold)).foregroundColor(AppTheme.textPrimary).lineLimit(1)
                             Text(note.body).font(.system(size: 12)).foregroundColor(AppTheme.textSecondary).lineLimit(2)
                             Spacer()
-                            Text(note.date.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 10)).foregroundColor(AppTheme.textTertiary)
+                            Text(note.date.deDayMonth).font(.system(size: 10)).foregroundColor(AppTheme.textTertiary)
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
@@ -153,10 +195,8 @@ struct StartseiteFamilieView: View {
         .onTapGesture { withAnimation { selectedTab = .notizen } }
     }
 
-    private func eventLabel(_ date: Date) -> String {
-        if Calendar.current.isDateInToday(date) { return "Heute" }
-        if Calendar.current.isDateInTomorrow(date) { return "Morgen" }
-        let f = DateFormatter(); f.locale = Locale(identifier: "de_AT"); f.dateFormat = "EE, d. MMM"
-        return f.string(from: date)
+    private func eventLabel(_ event: CalendarEvent, _ date: Date) -> String {
+        let day = date.deWeekdayDayMonth
+        return event.hasTime ? "\(day), \(date.deTime)" : day
     }
 }

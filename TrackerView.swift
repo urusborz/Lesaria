@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TrackerView: View {
     let mode: AppMode
@@ -72,6 +73,7 @@ struct TrackerView: View {
 struct HabitsView: View {
     @EnvironmentObject var store: DataStore
     @State private var showingAdd = false
+    @State private var editing: Habit? = nil
 
     private var completed: Int { store.habits.filter(\.isDone).count }
     private var progress: Double { store.habits.isEmpty ? 0 : Double(completed) / Double(store.habits.count) }
@@ -83,31 +85,31 @@ struct HabitsView: View {
                     SectionHeader(title: "Tägliche Habits", subtitle: "\(completed)/\(store.habits.count)")
                     AddButton { showingAdd = true }
                 }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)).frame(height: 6)
-                        RoundedRectangle(cornerRadius: 4).fill(AppTheme.accentGreen).frame(width: geo.size.width * progress, height: 6)
-                    }
-                }
-                .frame(height: 6)
+                ProgressBar(progress: progress)
             }
             .glassCard()
 
             if store.habits.isEmpty {
                 EmptyStateView(icon: "checkmark.circle", text: "Noch keine Habits")
             } else {
-                VStack(spacing: 1) {
+                VStack(spacing: 8) {
                     ForEach(store.habits) { habit in
-                        HabitRow(habit: habit)
+                        SwipeToDeleteRow(onDelete: { store.deleteHabit(id: habit.id) }) {
+                            HabitRow(habit: habit)
+                        }
+                        .itemContextMenu(onEdit: { editing = habit },
+                                         onDelete: { store.deleteHabit(id: habit.id) })
                     }
                 }
-                .background(AppTheme.glassBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
-                .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
             }
         }
         .sheet(isPresented: $showingAdd) {
-            AddHabitSheet(isPresented: $showingAdd).environmentObject(store)
+            HabitSheet(existing: nil, isPresented: $showingAdd).environmentObject(store)
+        }
+        .sheet(item: $editing) { habit in
+            HabitSheet(existing: habit, isPresented: Binding(
+                get: { editing != nil }, set: { if !$0 { editing = nil } }
+            )).environmentObject(store)
         }
     }
 }
@@ -132,99 +134,189 @@ struct HabitRow: View {
             Text(habit.title)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundColor(habit.isDone ? AppTheme.textTertiary : AppTheme.textPrimary)
-
             Spacer()
-
             HStack(spacing: 4) {
                 Image(systemName: "flame.fill").font(.system(size: 11)).foregroundColor(habit.streak > 0 ? AppTheme.accentAmber : AppTheme.textTertiary)
                 Text("\(habit.streak)").font(.system(size: 12, weight: .semibold)).foregroundColor(habit.streak > 0 ? AppTheme.accentAmber : AppTheme.textTertiary)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .overlay(Divider().background(AppTheme.separator).padding(.leading, 58), alignment: .bottom)
+        .contentShape(Rectangle())
     }
 }
 
-struct AddHabitSheet: View {
+struct HabitSheet: View {
+    let existing: Habit?
     @Binding var isPresented: Bool
     @EnvironmentObject var store: DataStore
-    @State private var title = ""
+    @State private var title: String
+
+    init(existing: Habit?, isPresented: Binding<Bool>) {
+        self.existing = existing
+        self._isPresented = isPresented
+        _title = State(initialValue: existing?.title ?? "")
+    }
 
     var body: some View {
-        DarkSheet(title: "Neuer Habit", isPresented: $isPresented) {
+        DarkSheet(title: existing == nil ? "Neuer Habit" : "Habit bearbeiten", isPresented: $isPresented) {
             DarkTextField(placeholder: "Habit eingeben...", text: $title)
         } onSave: {
             guard !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-            store.addHabit(Habit(title: title))
+            var h = existing ?? Habit(title: "")
+            h.title = title
+            if existing == nil { store.addHabit(h) } else { store.updateHabit(h) }
             isPresented = false
         }
     }
 }
 
-// MARK: - Prayer / Gebete View
+// MARK: - Prayer / Gebete View (live IZW Vienna times)
 
 struct GebeteView: View {
     @EnvironmentObject var store: DataStore
-
-    private var nextPrayer: PrayerTime? { store.prayers.first(where: { $0.isNext }) }
+    @State private var notifDenied = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            if let next = nextPrayer {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let now = context.date
+            let slots = store.prayerSlots(now: now)
+            let next = store.nextPrayer(now: now)
+            let doneCount = slots.filter { $0.isTrackable && $0.isDone }.count
+
+            VStack(spacing: 16) {
+                // Next prayer banner with live countdown
                 VStack(spacing: 8) {
-                    Text("Nächstes Gebet").font(.system(size: 12, weight: .medium)).foregroundColor(AppTheme.accentAmber.opacity(0.8))
-                    Text(next.name).font(.system(size: 34, weight: .bold, design: .rounded)).foregroundColor(.white)
-                    Text(next.time + " Uhr").font(.system(size: 22, weight: .light, design: .rounded)).foregroundColor(AppTheme.accentAmber)
-                    Text(next.germanName).font(.system(size: 13)).foregroundColor(AppTheme.textSecondary)
+                    Text("Nächstes Gebet")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(AppTheme.accentAmber.opacity(0.8))
+                    Text(next.name)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text(next.date.deTime + " Uhr")
+                        .font(.system(size: 20, weight: .light, design: .rounded))
+                        .foregroundColor(AppTheme.accentAmber)
+                    Text("in " + countdown(to: next.date, from: now))
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .foregroundColor(AppTheme.textSecondary)
+                        .padding(.top, 2)
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 24)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
                 .background(AppTheme.accentAmber.opacity(0.07))
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusXL))
                 .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusXL).stroke(AppTheme.accentAmber.opacity(0.18), lineWidth: 0.5))
-            }
 
-            VStack(spacing: 1) {
-                ForEach(store.prayers) { prayer in
-                    PrayerRow(prayer: prayer)
+                // Progress
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("Heute gebetet")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(AppTheme.textSecondary)
+                        Spacer()
+                        Text("\(doneCount)/5")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(AppTheme.accentGreen)
+                    }
+                    ProgressBar(progress: Double(doneCount) / 5.0)
                 }
+                .glassCard()
+
+                // Notification toggle
+                DarkToggleRow(title: "Benachrichtigungen", isOn: Binding(
+                    get: { store.prayerNotificationsEnabled },
+                    set: { store.setPrayerNotifications($0) }
+                ))
+
+                // Hint if notifications are disabled in iOS Settings
+                if notifDenied {
+                    NotificationDeniedBanner()
+                }
+
+                // Prayer list
+                VStack(spacing: 1) {
+                    ForEach(slots) { slot in
+                        PrayerRow(slot: slot, now: now)
+                            .environmentObject(store)
+                    }
+                }
+                .background(AppTheme.glassBackground)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
+                .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+
+                Text("Gebetszeiten: Islamisches Zentrum Wien · 2026")
+                    .font(.system(size: 10))
+                    .foregroundColor(AppTheme.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 2)
             }
-            .background(AppTheme.glassBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
-            .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+            .onAppear { NotificationManager.shared.isDenied { notifDenied = $0 } }
         }
+    }
+
+    private func countdown(to date: Date, from now: Date) -> String {
+        let secs = max(0, Int(date.timeIntervalSince(now)))
+        let h = secs / 3600, m = (secs % 3600) / 60, s = secs % 60
+        if h > 0 { return String(format: "%d Std %02d Min", h, m) }
+        return String(format: "%d Min %02d Sek", m, s)
     }
 }
 
 struct PrayerRow: View {
-    let prayer: PrayerTime
+    let slot: PrayerSlot
+    let now: Date
     @EnvironmentObject var store: DataStore
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(prayer.isDone ? AppTheme.accentGreen.opacity(0.15) : (prayer.isNext ? AppTheme.accentAmber.opacity(0.15) : Color.clear)).frame(width: 36, height: 36)
-                Image(systemName: prayer.isDone ? "checkmark" : (prayer.isNext ? "circle.dotted" : "moon.fill"))
-                    .font(.system(size: prayer.isDone ? 13 : 15, weight: prayer.isDone ? .bold : .regular))
-                    .foregroundColor(prayer.isDone ? AppTheme.accentGreen : (prayer.isNext ? AppTheme.accentAmber : AppTheme.textTertiary))
+                Circle()
+                    .fill(slot.isDone ? AppTheme.accentGreen.opacity(0.15) : (slot.isNext ? AppTheme.accentAmber.opacity(0.15) : Color.clear))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: slot.isDone ? 13 : 15, weight: slot.isDone ? .bold : .regular))
+                    .foregroundColor(iconColor)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(prayer.name).font(.system(size: 16, weight: prayer.isNext ? .semibold : .medium))
-                    .foregroundColor(prayer.isNext ? .white : (prayer.isDone ? AppTheme.textTertiary : AppTheme.textPrimary))
-                Text(prayer.germanName).font(.system(size: 11)).foregroundColor(AppTheme.textTertiary)
+                Text(slot.name)
+                    .font(.system(size: 16, weight: slot.isNext ? .semibold : .medium))
+                    .foregroundColor(slot.isNext ? .white : (slot.isDone ? AppTheme.textTertiary : AppTheme.textPrimary))
+                Text(slot.germanName)
+                    .font(.system(size: 11))
+                    .foregroundColor(AppTheme.textTertiary)
             }
             Spacer()
-            Text(prayer.time).font(.system(size: 16, weight: .light, design: .rounded))
-                .foregroundColor(prayer.isNext ? AppTheme.accentAmber : AppTheme.textSecondary)
-            Button { store.togglePrayer(id: prayer.id) } label: {
-                Image(systemName: prayer.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundColor(prayer.isDone ? AppTheme.accentGreen : Color.white.opacity(0.2))
+            Text(slot.time.deTime)
+                .font(.system(size: 16, weight: .light, design: .rounded))
+                .foregroundColor(slot.isNext ? AppTheme.accentAmber : AppTheme.textSecondary)
+
+            if slot.isTrackable {
+                Button { store.togglePrayer(name: slot.name) } label: {
+                    Image(systemName: slot.isDone ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20))
+                        .foregroundColor(slot.isDone ? AppTheme.accentGreen : Color.white.opacity(0.2))
+                }
+                .buttonStyle(.plain)
+            } else {
+                // Sonnenaufgang: no toggle, reserve width for alignment
+                Color.clear.frame(width: 20, height: 20)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .background(prayer.isNext ? AppTheme.accentAmber.opacity(0.04) : Color.clear)
+        .background(slot.isNext ? AppTheme.accentAmber.opacity(0.04) : Color.clear)
         .overlay(Divider().background(AppTheme.separator).padding(.leading, 58), alignment: .bottom)
+    }
+
+    private var icon: String {
+        if !slot.isTrackable { return "sunrise.fill" }
+        if slot.isDone { return "checkmark" }
+        if slot.isNext { return "circle.dotted" }
+        return "moon.fill"
+    }
+    private var iconColor: Color {
+        if !slot.isTrackable { return AppTheme.accentAmber.opacity(0.6) }
+        if slot.isDone { return AppTheme.accentGreen }
+        if slot.isNext { return AppTheme.accentAmber }
+        return AppTheme.textTertiary
     }
 }
 
@@ -233,42 +325,51 @@ struct PrayerRow: View {
 struct CleanTrackerView: View {
     @EnvironmentObject var store: DataStore
     @State private var showingAdd = false
+    @State private var editing: CleanTask? = nil
 
-    private var completed: Int { store.cleanTasks.filter(\.isCompleted).count }
+    private var dueCount: Int { store.cleanTasks.filter { $0.isDue() }.count }
+    private var total: Int { store.cleanTasks.count }
+    // Progress = share of tasks currently "fresh" (not due).
+    private var freshProgress: Double { total == 0 ? 0 : Double(total - dueCount) / Double(total) }
+
+    // Due tasks first (most overdue on top), then by remaining days.
+    private var sortedTasks: [CleanTask] {
+        store.cleanTasks.sorted { $0.daysUntilDue() < $1.daysUntilDue() }
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 12) {
                 HStack {
-                    SectionHeader(title: "Clean Tracker", subtitle: "\(completed)/\(store.cleanTasks.count)")
+                    SectionHeader(title: "Clean Tracker",
+                                  subtitle: dueCount == 0 ? "Alles frisch" : "\(dueCount) fällig")
                     AddButton { showingAdd = true }
                 }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)).frame(height: 6)
-                        RoundedRectangle(cornerRadius: 4).fill(AppTheme.accentGreen)
-                            .frame(width: store.cleanTasks.isEmpty ? 0 : geo.size.width * Double(completed) / Double(store.cleanTasks.count), height: 6)
-                    }
-                }
-                .frame(height: 6)
+                ProgressBar(progress: freshProgress)
             }
             .glassCard()
 
             if store.cleanTasks.isEmpty {
                 EmptyStateView(icon: "sparkles", text: "Noch keine Aufgaben")
             } else {
-                VStack(spacing: 1) {
-                    ForEach(store.cleanTasks) { task in
-                        CleanTaskRow(task: task)
+                VStack(spacing: 8) {
+                    ForEach(sortedTasks) { task in
+                        SwipeToDeleteRow(onDelete: { store.deleteCleanTask(id: task.id) }) {
+                            CleanTaskRow(task: task)
+                        }
+                        .itemContextMenu(onEdit: { editing = task },
+                                         onDelete: { store.deleteCleanTask(id: task.id) })
                     }
                 }
-                .background(AppTheme.glassBackground)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
-                .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
             }
         }
         .sheet(isPresented: $showingAdd) {
-            AddCleanTaskSheet(isPresented: $showingAdd).environmentObject(store)
+            CleanTaskSheet(existing: nil, isPresented: $showingAdd).environmentObject(store)
+        }
+        .sheet(item: $editing) { task in
+            CleanTaskSheet(existing: task, isPresented: Binding(
+                get: { editing != nil }, set: { if !$0 { editing = nil } }
+            )).environmentObject(store)
         }
     }
 }
@@ -277,20 +378,32 @@ struct CleanTaskRow: View {
     let task: CleanTask
     @EnvironmentObject var store: DataStore
 
+    private var due: Bool { task.isDue() }
+
     private var lastDoneLabel: String {
-        guard let date = task.lastDone else { return "Nie" }
-        let days = Calendar.current.dateComponents([.day], from: date, to: .now).day ?? 0
-        if days == 0 { return "Heute" }
-        if days == 1 { return "Gestern" }
-        return "Vor \(days) Tagen"
+        guard let days = task.daysSinceDone() else { return "Noch nie erledigt" }
+        if days == 0 { return "Zuletzt: heute" }
+        if days == 1 { return "Zuletzt: gestern" }
+        return "Zuletzt: vor \(days) Tagen"
+    }
+
+    private var status: (text: String, color: Color) {
+        let remaining = task.daysUntilDue()
+        if task.lastDone == nil { return ("Fällig", AppTheme.accentAmber) }
+        if remaining < 0  { return ("Überfällig · \(-remaining) T.", AppTheme.accentAmber) }
+        if remaining == 0 { return ("Heute fällig", AppTheme.accentAmber) }
+        return ("in \(remaining) T.", AppTheme.textTertiary)
     }
 
     var body: some View {
         HStack(spacing: 14) {
-            Button { store.toggleCleanTask(id: task.id) } label: {
+            Button { store.markCleanTaskDone(id: task.id) } label: {
                 ZStack {
-                    Circle().stroke(task.isCompleted ? AppTheme.accentGreen : Color.white.opacity(0.2), lineWidth: 1.5).frame(width: 26, height: 26)
-                    if task.isCompleted {
+                    Circle().stroke(due ? AppTheme.accentAmber.opacity(0.6) : AppTheme.accentGreen, lineWidth: 1.5)
+                        .frame(width: 26, height: 26)
+                    if due {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .bold)).foregroundColor(AppTheme.accentAmber)
+                    } else {
                         Circle().fill(AppTheme.accentGreen.opacity(0.2)).frame(width: 26, height: 26)
                         Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(AppTheme.accentGreen)
                     }
@@ -298,27 +411,44 @@ struct CleanTaskRow: View {
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 3) {
-                Text(task.title).font(.system(size: 15, weight: .medium)).foregroundColor(task.isCompleted ? AppTheme.textTertiary : AppTheme.textPrimary)
-                Text("Zuletzt: " + lastDoneLabel).font(.system(size: 11)).foregroundColor(AppTheme.textTertiary)
+                Text(task.title).font(.system(size: 15, weight: .medium)).foregroundColor(AppTheme.textPrimary)
+                Text(lastDoneLabel).font(.system(size: 11)).foregroundColor(AppTheme.textTertiary)
             }
             Spacer()
+            StatusPill(text: status.text, color: status.color)
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .overlay(Divider().background(AppTheme.separator).padding(.leading, 58), alignment: .bottom)
+        .contentShape(Rectangle())
     }
 }
 
-struct AddCleanTaskSheet: View {
+struct CleanTaskSheet: View {
+    let existing: CleanTask?
     @Binding var isPresented: Bool
     @EnvironmentObject var store: DataStore
-    @State private var title = ""
+    @State private var title: String
+    @State private var interval: Int
+
+    init(existing: CleanTask?, isPresented: Binding<Bool>) {
+        self.existing = existing
+        self._isPresented = isPresented
+        _title = State(initialValue: existing?.title ?? "")
+        _interval = State(initialValue: existing?.intervalDays ?? 7)
+    }
 
     var body: some View {
-        DarkSheet(title: "Neue Aufgabe", isPresented: $isPresented) {
-            DarkTextField(placeholder: "z.B. Badezimmer putzen", text: $title)
+        DarkSheet(title: existing == nil ? "Neue Aufgabe" : "Aufgabe bearbeiten",
+                  isPresented: $isPresented, detents: [.medium, .large]) {
+            VStack(spacing: 14) {
+                DarkTextField(placeholder: "z.B. Badezimmer putzen", text: $title)
+                IntervalPicker(days: $interval)
+            }
         } onSave: {
             guard !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-            store.addCleanTask(CleanTask(title: title))
+            var t = existing ?? CleanTask(title: "")
+            t.title = title
+            t.intervalDays = interval
+            if existing == nil { store.addCleanTask(t) } else { store.updateCleanTask(t) }
             isPresented = false
         }
     }
@@ -329,6 +459,7 @@ struct AddCleanTaskSheet: View {
 struct ShoppingListView: View {
     @EnvironmentObject var store: DataStore
     @State private var showingAdd = false
+    @State private var editing: ShoppingItem? = nil
 
     private var open: [ShoppingItem] { store.shoppingItems.filter { !$0.isChecked } }
     private var done: [ShoppingItem] { store.shoppingItems.filter { $0.isChecked } }
@@ -368,22 +499,26 @@ struct ShoppingListView: View {
                         EmptyStateView(icon: "cart", text: "Einkaufsliste ist leer")
                     } else {
                         if !open.isEmpty {
-                            VStack(spacing: 1) {
-                                ForEach(open) { item in ShoppingRow(item: item) }
+                            VStack(spacing: 8) {
+                                ForEach(open) { item in
+                                    SwipeToDeleteRow(onDelete: { store.deleteShoppingItem(id: item.id) }) {
+                                        ShoppingRow(item: item)
+                                    }
+                                    .itemContextMenu(onEdit: { editing = item },
+                                                     onDelete: { store.deleteShoppingItem(id: item.id) })
+                                }
                             }
-                            .background(AppTheme.glassBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
-                            .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
                         }
                         if !done.isEmpty {
-                            VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 SectionLabel("Erledigt")
-                                VStack(spacing: 1) {
-                                    ForEach(done) { item in ShoppingRow(item: item) }
+                                ForEach(done) { item in
+                                    SwipeToDeleteRow(onDelete: { store.deleteShoppingItem(id: item.id) }) {
+                                        ShoppingRow(item: item)
+                                    }
+                                    .itemContextMenu(onEdit: { editing = item },
+                                                     onDelete: { store.deleteShoppingItem(id: item.id) })
                                 }
-                                .background(AppTheme.glassBackground)
-                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
-                                .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusLarge).stroke(AppTheme.glassBorder, lineWidth: 0.5))
                             }
                         }
                     }
@@ -394,7 +529,12 @@ struct ShoppingListView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            AddShoppingItemSheet(isPresented: $showingAdd).environmentObject(store)
+            ShoppingSheet(existing: nil, isPresented: $showingAdd).environmentObject(store)
+        }
+        .sheet(item: $editing) { item in
+            ShoppingSheet(existing: item, isPresented: Binding(
+                get: { editing != nil }, set: { if !$0 { editing = nil } }
+            )).environmentObject(store)
         }
     }
 }
@@ -424,26 +564,54 @@ struct ShoppingRow: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .overlay(Divider().background(AppTheme.separator).padding(.leading, 56), alignment: .bottom)
+        .contentShape(Rectangle())
     }
 }
 
-struct AddShoppingItemSheet: View {
+struct ShoppingSheet: View {
+    let existing: ShoppingItem?
     @Binding var isPresented: Bool
     @EnvironmentObject var store: DataStore
-    @State private var name = ""
-    @State private var quantity = ""
+    @State private var name: String
+    @State private var quantity: String
+
+    init(existing: ShoppingItem?, isPresented: Binding<Bool>) {
+        self.existing = existing
+        self._isPresented = isPresented
+        _name = State(initialValue: existing?.name ?? "")
+        _quantity = State(initialValue: existing?.quantity ?? "")
+    }
 
     var body: some View {
-        DarkSheet(title: "Artikel hinzufügen", isPresented: $isPresented) {
+        DarkSheet(title: existing == nil ? "Artikel hinzufügen" : "Artikel bearbeiten", isPresented: $isPresented) {
             VStack(spacing: 12) {
                 DarkTextField(placeholder: "Artikel (z.B. Milch)", text: $name)
                 DarkTextField(placeholder: "Menge (z.B. 2 Liter)", text: $quantity)
             }
         } onSave: {
             guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-            store.addShoppingItem(ShoppingItem(name: name, quantity: quantity))
+            var i = existing ?? ShoppingItem(name: "")
+            i.name = name
+            i.quantity = quantity
+            if existing == nil { store.addShoppingItem(i) } else { store.updateShoppingItem(i) }
             isPresented = false
         }
+    }
+}
+
+// MARK: - Progress Bar
+
+struct ProgressBar: View {
+    let progress: Double   // 0...1
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)).frame(height: 6)
+                RoundedRectangle(cornerRadius: 4).fill(AppTheme.accentGreen)
+                    .frame(width: max(0, min(1, progress)) * geo.size.width, height: 6)
+            }
+        }
+        .frame(height: 6)
     }
 }
