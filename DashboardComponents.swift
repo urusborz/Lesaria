@@ -151,7 +151,9 @@ struct PrayerSunArc: View {
         let baseY = size.height - 24
         let ry = size.height - 42
         let theta = Double.pi * (1 - clamp(f))
-        return CGPoint(x: cx + rx * cos(theta), y: baseY - ry * sin(theta))
+        let c: Double = cos(theta)
+        let s: Double = sin(theta)
+        return CGPoint(x: cx + rx * CGFloat(c), y: baseY - ry * CGFloat(s))
     }
 
     private func arcPath(in size: CGSize) -> Path {
