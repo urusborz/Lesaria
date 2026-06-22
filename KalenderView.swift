@@ -450,7 +450,7 @@ struct ViewToggleButton: View {
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 .foregroundColor(isSelected ? AppTheme.onAccent : AppTheme.textTertiary)
                 .padding(.vertical, 8).padding(.horizontal, 22)
-                .background(Group { if isSelected { Capsule().fill(AppTheme.accentGradient).padding(3) } })
+                .background(Group { if isSelected { Capsule().fill(AppTheme.accent).padding(3) } })
         }
         .buttonStyle(.plain)
     }

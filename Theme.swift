@@ -23,55 +23,145 @@ enum AppAppearance: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+// MARK: - Palette (a full set of tokens for one theme in one appearance)
+
+struct Palette {
+    let background: Color        // app background (solid)
+    let surface: Color           // solid cards / rows / tiles
+    let glassTint: Color         // translucent tint layered over the glass material
+    let control: Color           // segmented / control fills
+    let accent: Color            // primary action / selection
+    let accentSecondary: Color   // secondary accent (family, alternate hue)
+    let success: Color           // done / streak / progress
+    let warning: Color           // prayers / overdue / attention
+    let textPrimary: Color
+    let textSecondary: Color
+    let textTertiary: Color
+    let border: Color
+    let separator: Color
+    let ringTrack: Color
+    let shadow: Color
+}
+
+// MARK: - Theme Packs
+
 enum AppAccentTheme: String, CaseIterable, Codable, Identifiable {
-    case klar
-    case azur
-    case rubin
+    case ocean
+    case sunset
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .klar: return "Klar"
-        case .azur: return "Azur"
-        case .rubin: return "Rubin"
+        case .ocean:  return "Ocean"
+        case .sunset: return "Sunset"
         }
     }
 
-    var primary: Color {
+    var subtitle: String {
         switch self {
-        case .klar: return Color(red: 0.16, green: 0.28, blue: 0.40)
-        case .azur: return Color(red: 0.18, green: 0.47, blue: 1.0)
-        case .rubin: return Color(red: 0.87, green: 0.16, blue: 0.38)
+        case .ocean:  return "Frisches Blau & Cyan"
+        case .sunset: return "Warmes Orange & Gold"
         }
     }
 
-    var secondary: Color {
+    /// Full token set for this pack in the requested appearance.
+    func palette(light: Bool) -> Palette {
         switch self {
-        case .klar: return Color(red: 0.08, green: 0.68, blue: 0.62)
-        case .azur: return Color(red: 0.02, green: 0.72, blue: 0.96)
-        case .rubin: return Color(red: 0.60, green: 0.26, blue: 0.95)
+
+        // MARK: Ocean – cool blue / cyan
+        case .ocean:
+            if light {
+                return Palette(
+                    background:       Color(red: 0.945, green: 0.965, blue: 0.986),
+                    surface:          Color(red: 1.0,   green: 1.0,   blue: 1.0),
+                    glassTint:        Color(red: 1.0,   green: 1.0,   blue: 1.0).opacity(0.60),
+                    control:          Color(red: 0.094, green: 0.231, blue: 0.412).opacity(0.06),
+                    accent:           Color(red: 0.106, green: 0.451, blue: 0.886),
+                    accentSecondary:  Color(red: 0.043, green: 0.557, blue: 0.671),
+                    success:          Color(red: 0.078, green: 0.671, blue: 0.475),
+                    warning:          Color(red: 0.902, green: 0.604, blue: 0.110),
+                    textPrimary:      Color(red: 0.063, green: 0.106, blue: 0.169),
+                    textSecondary:    Color(red: 0.298, green: 0.357, blue: 0.447),
+                    textTertiary:     Color(red: 0.506, green: 0.565, blue: 0.651),
+                    border:           Color(red: 0.063, green: 0.137, blue: 0.247).opacity(0.10),
+                    separator:        Color(red: 0.063, green: 0.137, blue: 0.247).opacity(0.08),
+                    ringTrack:        Color(red: 0.063, green: 0.137, blue: 0.247).opacity(0.12),
+                    shadow:           Color(red: 0.102, green: 0.200, blue: 0.353).opacity(0.13)
+                )
+            }
+            return Palette(
+                background:       Color(red: 0.043, green: 0.067, blue: 0.118),
+                surface:          Color(red: 0.090, green: 0.122, blue: 0.184),
+                glassTint:        Color(red: 0.129, green: 0.176, blue: 0.267).opacity(0.55),
+                control:          Color(red: 0.137, green: 0.176, blue: 0.251).opacity(0.92),
+                accent:           Color(red: 0.255, green: 0.561, blue: 0.969),
+                accentSecondary:  Color(red: 0.149, green: 0.776, blue: 0.835),
+                success:          Color(red: 0.176, green: 0.800, blue: 0.580),
+                warning:          Color(red: 0.980, green: 0.706, blue: 0.251),
+                textPrimary:      Color(red: 0.929, green: 0.949, blue: 0.984),
+                textSecondary:    Color(red: 0.624, green: 0.682, blue: 0.776),
+                textTertiary:     Color(red: 0.420, green: 0.482, blue: 0.580),
+                border:           Color.white.opacity(0.10),
+                separator:        Color.white.opacity(0.07),
+                ringTrack:        Color.white.opacity(0.13),
+                shadow:           Color.black.opacity(0.45)
+            )
+
+        // MARK: Sunset – warm orange / gold
+        case .sunset:
+            if light {
+                return Palette(
+                    background:       Color(red: 0.984, green: 0.961, blue: 0.937),
+                    surface:          Color(red: 1.0,   green: 0.996, blue: 0.988),
+                    glassTint:        Color(red: 1.0,   green: 1.0,   blue: 1.0).opacity(0.60),
+                    control:          Color(red: 0.451, green: 0.231, blue: 0.094).opacity(0.06),
+                    accent:           Color(red: 0.878, green: 0.388, blue: 0.106),
+                    accentSecondary:  Color(red: 0.851, green: 0.255, blue: 0.353),
+                    success:          Color(red: 0.345, green: 0.620, blue: 0.247),
+                    warning:          Color(red: 0.882, green: 0.580, blue: 0.110),
+                    textPrimary:      Color(red: 0.149, green: 0.094, blue: 0.067),
+                    textSecondary:    Color(red: 0.412, green: 0.329, blue: 0.282),
+                    textTertiary:     Color(red: 0.596, green: 0.514, blue: 0.459),
+                    border:           Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.10),
+                    separator:        Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.08),
+                    ringTrack:        Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.12),
+                    shadow:           Color(red: 0.353, green: 0.200, blue: 0.102).opacity(0.13)
+                )
+            }
+            return Palette(
+                background:       Color(red: 0.098, green: 0.063, blue: 0.051),
+                surface:          Color(red: 0.165, green: 0.110, blue: 0.090),
+                glassTint:        Color(red: 0.220, green: 0.149, blue: 0.122).opacity(0.55),
+                control:          Color(red: 0.235, green: 0.165, blue: 0.133).opacity(0.92),
+                accent:           Color(red: 0.969, green: 0.475, blue: 0.169),
+                accentSecondary:  Color(red: 0.961, green: 0.357, blue: 0.451),
+                success:          Color(red: 0.451, green: 0.745, blue: 0.353),
+                warning:          Color(red: 0.973, green: 0.690, blue: 0.196),
+                textPrimary:      Color(red: 0.980, green: 0.945, blue: 0.918),
+                textSecondary:    Color(red: 0.776, green: 0.698, blue: 0.643),
+                textTertiary:     Color(red: 0.561, green: 0.490, blue: 0.443),
+                border:           Color.white.opacity(0.10),
+                separator:        Color.white.opacity(0.07),
+                ringTrack:        Color.white.opacity(0.13),
+                shadow:           Color.black.opacity(0.45)
+            )
         }
     }
 
-    var tertiary: Color {
-        switch self {
-        case .klar: return Color(red: 0.58, green: 0.64, blue: 0.72)
-        case .azur: return Color(red: 0.38, green: 0.36, blue: 1.0)
-        case .rubin: return Color(red: 1.0, green: 0.50, blue: 0.30)
-        }
-    }
+    /// Quick accent swatch (selected appearance not required).
+    var swatch: Color { palette(light: false).accent }
 
     static func storedValue(_ rawValue: String?) -> AppAccentTheme {
         switch rawValue {
-        case "klar": return .klar
-        case "azur", "ocean": return .azur
-        case "rubin", "sunset": return .rubin
-        case "emerald": return .klar
-        default: return .klar
+        case "sunset", "rubin":            return .sunset
+        case "ocean", "azur", "klar", "emerald": return .ocean
+        default: return .ocean
         }
     }
 }
+
+// MARK: - Active Theme Tokens
 
 struct AppTheme {
     static var appearance: AppAppearance {
@@ -84,100 +174,45 @@ struct AppTheme {
 
     static var isLight: Bool { appearance == .light }
 
-    // Backgrounds
-    static var backgroundPrimary: Color {
-        if isLight {
-            switch accentTheme {
-            case .klar: return Color(red: 0.955, green: 0.966, blue: 0.978)
-            case .azur: return Color(red: 0.940, green: 0.965, blue: 0.995)
-            case .rubin: return Color(red: 0.990, green: 0.948, blue: 0.965)
-            }
-        }
-        switch accentTheme {
-        case .klar: return Color(red: 0.025, green: 0.029, blue: 0.036)
-        case .azur: return Color(red: 0.012, green: 0.030, blue: 0.060)
-        case .rubin: return Color(red: 0.052, green: 0.018, blue: 0.034)
-        }
-    }
-    static var backgroundSecondary: Color {
-        if isLight {
-            switch accentTheme {
-            case .klar: return Color(red: 0.914, green: 0.936, blue: 0.956)
-            case .azur: return Color(red: 0.872, green: 0.930, blue: 0.990)
-            case .rubin: return Color(red: 0.974, green: 0.900, blue: 0.934)
-            }
-        }
-        switch accentTheme {
-        case .klar: return Color(red: 0.058, green: 0.065, blue: 0.078)
-        case .azur: return Color(red: 0.030, green: 0.070, blue: 0.125)
-        case .rubin: return Color(red: 0.110, green: 0.036, blue: 0.074)
-        }
-    }
-    static var backgroundTertiary: Color {
-        isLight ? Color(red: 0.995, green: 0.997, blue: 1.0) : Color(red: 0.085, green: 0.090, blue: 0.105)
-    }
-    static var cardSolid: Color {
-        isLight ? Color(red: 0.995, green: 0.997, blue: 1.0) : Color(red: 0.092, green: 0.097, blue: 0.112)
-    }
+    private static var p: Palette { accentTheme.palette(light: isLight) }
 
-    // Glass card
-    static var glassBackground: Color { isLight ? Color(red: 0.995, green: 0.997, blue: 1.0).opacity(0.92) : Color(red: 0.105, green: 0.110, blue: 0.128).opacity(0.94) }
-    static var glassBorder: Color { isLight ? Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.08) : Color(red: 1.0, green: 1.0, blue: 1.0).opacity(0.09) }
-    static var glassHighlight: Color { isLight ? Color(red: 1.0, green: 1.0, blue: 1.0).opacity(0.96) : Color(red: 1.0, green: 1.0, blue: 1.0).opacity(0.11) }
-    static var controlBackground: Color { isLight ? Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.060) : Color(red: 0.16, green: 0.17, blue: 0.20).opacity(0.92) }
-    static var selectedControlBackground: Color { isLight ? accentTheme.primary.opacity(0.14) : accentTheme.primary.opacity(0.28) }
-    static var ringTrack: Color { isLight ? Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.12) : Color(red: 1.0, green: 1.0, blue: 1.0).opacity(0.14) }
-    static var shadow: Color { isLight ? Color(red: 0.05, green: 0.07, blue: 0.10).opacity(0.14) : Color.black.opacity(0.42) }
+    // Backgrounds
+    static var background: Color { p.background }
+    static var backgroundPrimary: Color { p.background }
+    static var backgroundSecondary: Color { p.surface }
+    static var backgroundTertiary: Color { p.surface }
+    static var cardSolid: Color { p.surface }
+
+    // Glass
+    static var glassTint: Color { p.glassTint }
+    static var glassBackground: Color { p.surface }
+    static var glassBorder: Color { p.border }
+    static var glassHighlight: Color { isLight ? Color.white.opacity(0.9) : Color.white.opacity(0.12) }
+    static var controlBackground: Color { p.control }
+    static var selectedControlBackground: Color { p.accent.opacity(isLight ? 0.14 : 0.26) }
+    static var ringTrack: Color { p.ringTrack }
+    static var shadow: Color { p.shadow }
+    static var cardShadow: Color { p.shadow.opacity(isLight ? 0.7 : 0.8) }
     static var onAccent: Color { Color.white }
 
     // Text
-    static var textPrimary: Color { isLight ? Color(red: 0.075, green: 0.085, blue: 0.110) : Color(red: 0.955, green: 0.960, blue: 0.975) }
-    static var textSecondary: Color { isLight ? Color(red: 0.32, green: 0.35, blue: 0.42) : Color(red: 0.70, green: 0.72, blue: 0.78) }
-    static var textTertiary: Color { isLight ? Color(red: 0.55, green: 0.58, blue: 0.66) : Color(red: 0.48, green: 0.50, blue: 0.57) }
+    static var textPrimary: Color { p.textPrimary }
+    static var textSecondary: Color { p.textSecondary }
+    static var textTertiary: Color { p.textTertiary }
 
-    static var backgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [backgroundPrimary, backgroundSecondary, backgroundPrimary],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    static var accentGradient: LinearGradient {
-        LinearGradient(
-            colors: [accentTheme.primary, accentTheme.secondary],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    static var softAccentGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                accentTheme.primary.opacity(isLight ? 0.16 : 0.24),
-                accentTheme.secondary.opacity(isLight ? 0.10 : 0.18)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    // Accent colors (used sparingly)
-    static var accentBlue: Color { accentTheme.primary }
-    static var accentGreen: Color { accentTheme.secondary }
-    static var accentAmber: Color {
-        switch accentTheme {
-        case .klar, .azur: return Color(red: 1.0, green: 0.70, blue: 0.23)
-        case .rubin: return Color(red: 1.0, green: 0.58, blue: 0.24)
-        }
-    }
-    static var accentPurple: Color { accentTheme.tertiary }
+    // Accent colors (semantic — harmonised per theme)
+    static var accent: Color { p.accent }
+    static var accentSecondary: Color { p.accentSecondary }
+    static var accentBlue: Color { p.accent }
+    static var accentGreen: Color { p.success }
+    static var accentAmber: Color { p.warning }
+    static var accentPurple: Color { p.accentSecondary }
 
     // Separators
-    static var separator: Color { isLight ? Color.black.opacity(0.08) : Color.white.opacity(0.06) }
+    static var separator: Color { p.separator }
 
     // Corner radii
-    static let radiusSmall: CGFloat = 10
+    static let radiusSmall: CGFloat = 12
     static let radiusMedium: CGFloat = 16
     static let radiusLarge: CGFloat = 22
     static let radiusXL: CGFloat = 28
@@ -190,26 +225,40 @@ struct AppTheme {
     }
 }
 
-// MARK: - Glass Card Modifier
+// MARK: - Liquid Glass Card
 
 struct GlassCard: ViewModifier {
     var padding: CGFloat = 16
+    var radius: CGFloat = AppTheme.radiusLarge
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(AppTheme.glassBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLarge))
+            .background(AppTheme.glassTint, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: AppTheme.radiusLarge)
-                    .stroke(AppTheme.glassBorder, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(AppTheme.glassBorder, lineWidth: 0.8)
             )
+            .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 10)
     }
 }
 
 extension View {
-    func glassCard(padding: CGFloat = 16) -> some View {
-        modifier(GlassCard(padding: padding))
+    func glassCard(padding: CGFloat = 16, radius: CGFloat = AppTheme.radiusLarge) -> some View {
+        modifier(GlassCard(padding: padding, radius: radius))
+    }
+
+    /// Floating glass treatment for bars (nav bar, mode switcher).
+    func floatingGlass(cornerRadius: CGFloat, strong: Bool = false) -> some View {
+        self
+            .background(AppTheme.glassTint, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(AppTheme.glassBorder, lineWidth: 0.8)
+            )
+            .shadow(color: AppTheme.cardShadow, radius: strong ? 20 : 12, x: 0, y: strong ? 12 : 6)
     }
 }
 

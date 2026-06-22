@@ -13,7 +13,7 @@ struct BackupSheet: View {
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
+            AppTheme.background.ignoresSafeArea()
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
 
@@ -75,13 +75,13 @@ struct BackupSheet: View {
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
-                            SectionLabel("Akzent")
-                            HStack(spacing: 10) {
+                            SectionLabel("Theme")
+                            HStack(spacing: 12) {
                                 ForEach(AppAccentTheme.allCases) { theme in
-                                    settingsOption(
-                                        title: theme.title,
-                                        isSelected: store.appAccentTheme == theme,
-                                        swatch: theme.primary
+                                    ThemePreviewTile(
+                                        theme: theme,
+                                        isLight: store.appAppearance == .light,
+                                        isSelected: store.appAccentTheme == theme
                                     ) {
                                         store.setAccentTheme(theme)
                                     }
@@ -182,13 +182,13 @@ struct BackupSheet: View {
         .padding(.horizontal, 16).padding(.vertical, 14)
         .background {
             if filled {
-                AppTheme.accentGradient
+                AppTheme.accent
             } else {
                 AppTheme.controlBackground
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium))
-        .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusMedium).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous).stroke(AppTheme.glassBorder, lineWidth: 0.5))
     }
 
     private func settingsOption(title: String, isSelected: Bool, swatch: Color, action: @escaping () -> Void) -> some View {
@@ -209,13 +209,74 @@ struct BackupSheet: View {
             .padding(.horizontal, 10)
             .background {
                 if isSelected {
-                    AppTheme.accentGradient
+                    AppTheme.accent
                 } else {
                     AppTheme.controlBackground
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium))
-            .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusMedium).stroke(isSelected ? AppTheme.accentBlue.opacity(0.35) : AppTheme.glassBorder, lineWidth: 0.5))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous).stroke(isSelected ? AppTheme.accent.opacity(0.45) : AppTheme.glassBorder, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Theme Preview Tile (live palette mock per pack)
+
+struct ThemePreviewTile: View {
+    let theme: AppAccentTheme
+    let isLight: Bool
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let p = theme.palette(light: isLight)
+        Button(action: action) {
+            VStack(spacing: 10) {
+                // Miniature app mock rendered in this pack's palette
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 5) {
+                        Circle().fill(p.accent).frame(width: 9, height: 9)
+                        Circle().fill(p.accentSecondary).frame(width: 9, height: 9)
+                        Circle().fill(p.success).frame(width: 9, height: 9)
+                        Spacer()
+                    }
+                    // a mini "card"
+                    VStack(alignment: .leading, spacing: 5) {
+                        RoundedRectangle(cornerRadius: 3).fill(p.textPrimary.opacity(0.85)).frame(width: 52, height: 6)
+                        RoundedRectangle(cornerRadius: 3).fill(p.textSecondary.opacity(0.7)).frame(width: 34, height: 5)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(p.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(p.border, lineWidth: 0.5))
+                    // a mini accent button
+                    Capsule().fill(p.accent).frame(width: 50, height: 16)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(p.background)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous)
+                        .stroke(isSelected ? p.accent : AppTheme.glassBorder, lineWidth: isSelected ? 2 : 0.5)
+                )
+                .shadow(color: isSelected ? p.accent.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
+
+                // Title + check
+                HStack(spacing: 6) {
+                    Text(theme.title)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.textPrimary)
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(AppTheme.accent)
+                    }
+                    Spacer()
+                }
+            }
         }
         .buttonStyle(.plain)
     }

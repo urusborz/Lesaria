@@ -12,7 +12,7 @@ struct ContentView: View {
             let screenPadding = AppTheme.screenPadding(for: proxy.size.width)
 
             ZStack {
-                AppTheme.backgroundGradient
+                AppTheme.background
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -24,9 +24,7 @@ struct ContentView: View {
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(AppTheme.textSecondary)
                                 .frame(width: 46, height: 40)
-                                .background(AppTheme.controlBackground)
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+                                .floatingGlass(cornerRadius: 14)
                         }
                         .buttonStyle(.plain)
                     }
@@ -57,8 +55,8 @@ struct ContentView: View {
 
                     // Floating bottom navigation
                     BottomNavBarView(selectedTab: $selectedTab, mode: selectedMode)
-                        .padding(.horizontal, screenPadding)
-                        .padding(.bottom, 2)
+                        .padding(.horizontal, screenPadding + 6)
+                        .padding(.bottom, 6)
                 }
             }
         }
@@ -92,9 +90,7 @@ struct ModeSwitcherView: View {
                 )
             }
         }
-        .background(AppTheme.controlBackground)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(AppTheme.glassBorder, lineWidth: 0.5))
+        .floatingGlass(cornerRadius: 24)
     }
 }
 
@@ -114,8 +110,9 @@ struct ModeSwitcherButton: View {
                     Group {
                         if isSelected {
                             Capsule()
-                                .fill(AppTheme.accentGradient)
+                                .fill(AppTheme.accent)
                                 .padding(4)
+                                .shadow(color: AppTheme.accent.opacity(0.35), radius: 8, x: 0, y: 3)
                         }
                     }
                 )
@@ -145,12 +142,9 @@ struct BottomNavBarView: View {
                 )
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .padding(.horizontal, 8)
-        .background(AppTheme.glassBackground)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(AppTheme.glassBorder, lineWidth: 0.5))
-        .shadow(color: AppTheme.shadow, radius: 20, x: 0, y: 10)
+        .floatingGlass(cornerRadius: 30, strong: true)
     }
 }
 
@@ -176,8 +170,9 @@ struct TabBarButtonView: View {
             .background(
                 Group {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(AppTheme.accentGradient)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(AppTheme.accent)
+                            .shadow(color: AppTheme.accent.opacity(0.35), radius: 8, x: 0, y: 3)
                     }
                 }
             )

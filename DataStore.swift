@@ -18,7 +18,7 @@ class DataStore: ObservableObject {
     @Published var prayerNotificationsEnabled: Bool = false
 
     @Published var appAppearance: AppAppearance = .dark
-    @Published var appAccentTheme: AppAccentTheme = .klar
+    @Published var appAccentTheme: AppAccentTheme = .ocean
     @Published var displayName: String = ""
 
     // MARK: - Init

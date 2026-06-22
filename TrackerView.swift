@@ -37,13 +37,13 @@ struct TrackerView: View {
                                 .padding(.vertical, 8).padding(.horizontal, 18)
                                 .background {
                                     if section == sec {
-                                        AppTheme.accentGradient
+                                        AppTheme.accent
                                     } else {
                                         AppTheme.controlBackground
                                     }
                                 }
                                 .clipShape(Capsule())
-                                .overlay(Capsule().stroke(section == sec ? AppTheme.accentBlue.opacity(0.4) : AppTheme.glassBorder, lineWidth: 0.5))
+                                .overlay(Capsule().stroke(section == sec ? AppTheme.accent.opacity(0.4) : AppTheme.glassBorder, lineWidth: 0.5))
                         }
                         .buttonStyle(.plain)
                     }
@@ -455,14 +455,8 @@ struct WithdrawalCard: View {
         .foregroundColor(AppTheme.onAccent)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(
-            LinearGradient(
-                colors: [AppTheme.accentAmber, AppTheme.accentPurple],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium))
+        .background(AppTheme.accent)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
     }
 }
 

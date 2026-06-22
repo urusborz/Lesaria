@@ -79,9 +79,9 @@ struct AddButton: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(AppTheme.onAccent)
                 .frame(width: 34, height: 34)
-                .background(AppTheme.accentGradient)
+                .background(AppTheme.accent)
                 .clipShape(Circle())
-                .overlay(Circle().stroke(AppTheme.glassBorder, lineWidth: 0.5))
+                .shadow(color: AppTheme.accent.opacity(0.35), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -132,7 +132,7 @@ struct DarkSheet<Content: View>: View {
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
+            AppTheme.background.ignoresSafeArea()
             VStack(spacing: 24) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(AppTheme.textTertiary.opacity(0.5))
@@ -159,8 +159,8 @@ struct DarkSheet<Content: View>: View {
                         .foregroundColor(AppTheme.onAccent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(AppTheme.accentGradient)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium))
+                        .background(AppTheme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
                 }
 
                 Spacer()
@@ -378,13 +378,13 @@ struct ChipButton: View {
                 .padding(.vertical, 8).padding(.horizontal, 14)
                 .background {
                     if isSelected {
-                        AppTheme.accentGradient
+                        AppTheme.accent
                     } else {
                         AppTheme.controlBackground
                     }
                 }
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(isSelected ? AppTheme.accentBlue.opacity(0.4) : AppTheme.glassBorder, lineWidth: 0.5))
+                .overlay(Capsule().stroke(isSelected ? AppTheme.accent.opacity(0.4) : AppTheme.glassBorder, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
     }
