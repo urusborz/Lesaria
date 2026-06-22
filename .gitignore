@@ -1,0 +1,6 @@
+# Build artifacts / downloaded IPAs
+HomeUI.ipa
+*.ipa
+Payload/
+build/
+.DS_Store
