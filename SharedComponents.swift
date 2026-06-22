@@ -81,9 +81,9 @@ struct AddButton: View {
                 .frame(width: 34, height: 34)
                 .background(AppTheme.accent)
                 .clipShape(Circle())
-                .shadow(color: AppTheme.accent.opacity(0.35), radius: 8, x: 0, y: 3)
+                .shadow(color: AppTheme.accent.opacity(0.3), radius: 6, x: 0, y: 2)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScaleButtonStyle())
     }
 }
 

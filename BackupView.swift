@@ -5,12 +5,6 @@ struct BackupSheet: View {
     @EnvironmentObject var store: DataStore
     @Binding var isPresented: Bool
 
-    @State private var exportURL: URL? = nil
-    @State private var importText = ""
-    @State private var message: String? = nil
-    @State private var messageColor: Color = AppTheme.accentGreen
-    @State private var showImportConfirm = false
-
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
@@ -34,18 +28,8 @@ struct BackupSheet: View {
                     }
                     .padding(.top, 18)
 
-                    if let message {
-                        Text(message)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(messageColor)
-                            .padding(.horizontal, 14).padding(.vertical, 10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(messageColor.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium))
-                    }
-
                     // Appearance
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 16) {
                         SectionHeader(title: "Darstellung")
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -86,57 +70,9 @@ struct BackupSheet: View {
                                         store.setAccentTheme(theme)
                                     }
                                 }
+                                Spacer(minLength: 0)
                             }
                         }
-                    }
-                    .glassCard()
-
-                    // Export
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Exportieren")
-                        Text("Sichere alle Daten (Termine, Aufgaben, Notizen, Einkauf, Tracker) als Datei. Ohne Backup gehen Daten beim Löschen der App verloren.")
-                            .font(.system(size: 13))
-                            .foregroundColor(AppTheme.textSecondary)
-
-                        if let url = exportURL {
-                            ShareLink(item: url) {
-                                actionLabel(icon: "square.and.arrow.up", text: "Backup teilen / sichern", filled: true)
-                            }
-                        }
-                        Button {
-                            UIPasteboard.general.string = store.exportJSON()
-                            flash("In Zwischenablage kopiert ✓", AppTheme.accentGreen)
-                        } label: {
-                            actionLabel(icon: "doc.on.doc", text: "In Zwischenablage kopieren", filled: false)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .glassCard()
-
-                    // Import
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: "Importieren")
-                        Text("Backup-Text hier einfügen und importieren. Achtung: ersetzt alle aktuellen Daten.")
-                            .font(.system(size: 13))
-                            .foregroundColor(AppTheme.textSecondary)
-
-                        DarkTextEditor(placeholder: "Backup-JSON hier einfügen...", text: $importText)
-
-                        Button {
-                            if let s = UIPasteboard.general.string { importText = s }
-                        } label: {
-                            actionLabel(icon: "doc.on.clipboard", text: "Aus Zwischenablage einfügen", filled: false)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            showImportConfirm = true
-                        } label: {
-                            actionLabel(icon: "tray.and.arrow.down", text: "Importieren", filled: true)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .opacity(importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
                     }
                     .glassCard()
 
@@ -148,47 +84,10 @@ struct BackupSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
-        .onAppear { exportURL = store.exportFileURL() }
-        .alert("Daten ersetzen?", isPresented: $showImportConfirm) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Importieren", role: .destructive) { performImport() }
-        } message: {
-            Text("Alle aktuellen Daten werden durch das Backup ersetzt. Das kann nicht rückgängig gemacht werden.")
-        }
-    }
-
-    private func performImport() {
-        if store.importJSON(importText) {
-            importText = ""
-            flash("Import erfolgreich ✓", AppTheme.accentGreen)
-            exportURL = store.exportFileURL()
-        } else {
-            flash("Import fehlgeschlagen – ungültiges Backup.", AppTheme.accentAmber)
-        }
-    }
-
-    private func flash(_ text: String, _ color: Color) {
-        message = text
-        messageColor = color
-    }
-
-    private func actionLabel(icon: String, text: String, filled: Bool) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: 15, weight: .semibold))
-            Text(text).font(.system(size: 15, weight: .semibold))
-            Spacer()
-        }
-        .foregroundColor(filled ? AppTheme.onAccent : AppTheme.textPrimary)
-        .padding(.horizontal, 16).padding(.vertical, 14)
-        .background {
-            if filled {
-                AppTheme.accent
-            } else {
-                AppTheme.controlBackground
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous).stroke(AppTheme.glassBorder, lineWidth: 0.5))
+        // Re-render the whole sheet live when the appearance/theme changes,
+        // so the cards instantly adopt the new colours (not only after reopen).
+        .preferredColorScheme(store.appAppearance.preferredColorScheme)
+        .id("\(store.appAppearance.rawValue)-\(store.appAccentTheme.rawValue)")
     }
 
     private func settingsOption(title: String, isSelected: Bool, swatch: Color, action: @escaping () -> Void) -> some View {
@@ -241,7 +140,6 @@ struct ThemePreviewTile: View {
                         Circle().fill(p.success).frame(width: 9, height: 9)
                         Spacer()
                     }
-                    // a mini "card"
                     VStack(alignment: .leading, spacing: 5) {
                         RoundedRectangle(cornerRadius: 3).fill(p.textPrimary.opacity(0.85)).frame(width: 52, height: 6)
                         RoundedRectangle(cornerRadius: 3).fill(p.textSecondary.opacity(0.7)).frame(width: 34, height: 5)
@@ -251,20 +149,17 @@ struct ThemePreviewTile: View {
                     .background(p.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(p.border, lineWidth: 0.5))
-                    // a mini accent button
                     Capsule().fill(p.accent).frame(width: 50, height: 16)
                 }
                 .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 150, alignment: .leading)
                 .background(p.background)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: AppTheme.radiusMedium, style: .continuous)
                         .stroke(isSelected ? p.accent : AppTheme.glassBorder, lineWidth: isSelected ? 2 : 0.5)
                 )
-                .shadow(color: isSelected ? p.accent.opacity(0.3) : .clear, radius: 8, x: 0, y: 3)
 
-                // Title + check
                 HStack(spacing: 6) {
                     Text(theme.title)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -276,6 +171,7 @@ struct ThemePreviewTile: View {
                     }
                     Spacer()
                 }
+                .frame(width: 150)
             }
         }
         .buttonStyle(.plain)

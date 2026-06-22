@@ -27,8 +27,8 @@ enum AppAppearance: String, CaseIterable, Codable, Identifiable {
 
 struct Palette {
     let background: Color        // app background (solid)
-    let surface: Color           // solid cards / rows / tiles
-    let glassTint: Color         // translucent tint layered over the glass material
+    let surface: Color           // solid cards / rows / tiles / bars
+    let surfaceElevated: Color   // slightly lifted surface (selected rows)
     let control: Color           // segmented / control fills
     let accent: Color            // primary action / selection
     let accentSecondary: Color   // secondary accent (family, alternate hue)
@@ -43,39 +43,34 @@ struct Palette {
     let shadow: Color
 }
 
-// MARK: - Theme Packs
+// MARK: - Theme Pack (currently a single pack: Ocean)
 
 enum AppAccentTheme: String, CaseIterable, Codable, Identifiable {
     case ocean
-    case sunset
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .ocean:  return "Ocean"
-        case .sunset: return "Sunset"
+        case .ocean: return "Ocean"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .ocean:  return "Frisches Blau & Cyan"
-        case .sunset: return "Warmes Orange & Gold"
+        case .ocean: return "Frisches Blau & Cyan"
         }
     }
 
     /// Full token set for this pack in the requested appearance.
     func palette(light: Bool) -> Palette {
         switch self {
-
-        // MARK: Ocean – cool blue / cyan
         case .ocean:
             if light {
                 return Palette(
                     background:       Color(red: 0.945, green: 0.965, blue: 0.986),
                     surface:          Color(red: 1.0,   green: 1.0,   blue: 1.0),
-                    glassTint:        Color(red: 1.0,   green: 1.0,   blue: 1.0).opacity(0.60),
+                    surfaceElevated:  Color(red: 0.976, green: 0.984, blue: 0.996),
                     control:          Color(red: 0.094, green: 0.231, blue: 0.412).opacity(0.06),
                     accent:           Color(red: 0.106, green: 0.451, blue: 0.886),
                     accentSecondary:  Color(red: 0.043, green: 0.557, blue: 0.671),
@@ -93,7 +88,7 @@ enum AppAccentTheme: String, CaseIterable, Codable, Identifiable {
             return Palette(
                 background:       Color(red: 0.043, green: 0.067, blue: 0.118),
                 surface:          Color(red: 0.090, green: 0.122, blue: 0.184),
-                glassTint:        Color(red: 0.129, green: 0.176, blue: 0.267).opacity(0.55),
+                surfaceElevated:  Color(red: 0.122, green: 0.161, blue: 0.235),
                 control:          Color(red: 0.137, green: 0.176, blue: 0.251).opacity(0.92),
                 accent:           Color(red: 0.255, green: 0.561, blue: 0.969),
                 accentSecondary:  Color(red: 0.149, green: 0.776, blue: 0.835),
@@ -107,57 +102,11 @@ enum AppAccentTheme: String, CaseIterable, Codable, Identifiable {
                 ringTrack:        Color.white.opacity(0.13),
                 shadow:           Color.black.opacity(0.45)
             )
-
-        // MARK: Sunset – warm orange / gold
-        case .sunset:
-            if light {
-                return Palette(
-                    background:       Color(red: 0.984, green: 0.961, blue: 0.937),
-                    surface:          Color(red: 1.0,   green: 0.996, blue: 0.988),
-                    glassTint:        Color(red: 1.0,   green: 1.0,   blue: 1.0).opacity(0.60),
-                    control:          Color(red: 0.451, green: 0.231, blue: 0.094).opacity(0.06),
-                    accent:           Color(red: 0.878, green: 0.388, blue: 0.106),
-                    accentSecondary:  Color(red: 0.851, green: 0.255, blue: 0.353),
-                    success:          Color(red: 0.345, green: 0.620, blue: 0.247),
-                    warning:          Color(red: 0.882, green: 0.580, blue: 0.110),
-                    textPrimary:      Color(red: 0.149, green: 0.094, blue: 0.067),
-                    textSecondary:    Color(red: 0.412, green: 0.329, blue: 0.282),
-                    textTertiary:     Color(red: 0.596, green: 0.514, blue: 0.459),
-                    border:           Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.10),
-                    separator:        Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.08),
-                    ringTrack:        Color(red: 0.247, green: 0.137, blue: 0.063).opacity(0.12),
-                    shadow:           Color(red: 0.353, green: 0.200, blue: 0.102).opacity(0.13)
-                )
-            }
-            return Palette(
-                background:       Color(red: 0.098, green: 0.063, blue: 0.051),
-                surface:          Color(red: 0.165, green: 0.110, blue: 0.090),
-                glassTint:        Color(red: 0.220, green: 0.149, blue: 0.122).opacity(0.55),
-                control:          Color(red: 0.235, green: 0.165, blue: 0.133).opacity(0.92),
-                accent:           Color(red: 0.969, green: 0.475, blue: 0.169),
-                accentSecondary:  Color(red: 0.961, green: 0.357, blue: 0.451),
-                success:          Color(red: 0.451, green: 0.745, blue: 0.353),
-                warning:          Color(red: 0.973, green: 0.690, blue: 0.196),
-                textPrimary:      Color(red: 0.980, green: 0.945, blue: 0.918),
-                textSecondary:    Color(red: 0.776, green: 0.698, blue: 0.643),
-                textTertiary:     Color(red: 0.561, green: 0.490, blue: 0.443),
-                border:           Color.white.opacity(0.10),
-                separator:        Color.white.opacity(0.07),
-                ringTrack:        Color.white.opacity(0.13),
-                shadow:           Color.black.opacity(0.45)
-            )
         }
     }
 
-    /// Quick accent swatch (selected appearance not required).
-    var swatch: Color { palette(light: false).accent }
-
     static func storedValue(_ rawValue: String?) -> AppAccentTheme {
-        switch rawValue {
-        case "sunset", "rubin":            return .sunset
-        case "ocean", "azur", "klar", "emerald": return .ocean
-        default: return .ocean
-        }
+        return .ocean
     }
 }
 
@@ -168,9 +117,7 @@ struct AppTheme {
         AppAppearance(rawValue: UserDefaults.standard.string(forKey: "appAppearance") ?? "") ?? .dark
     }
 
-    static var accentTheme: AppAccentTheme {
-        AppAccentTheme.storedValue(UserDefaults.standard.string(forKey: "appAccentTheme"))
-    }
+    static var accentTheme: AppAccentTheme { .ocean }
 
     static var isLight: Bool { appearance == .light }
 
@@ -181,10 +128,10 @@ struct AppTheme {
     static var backgroundPrimary: Color { p.background }
     static var backgroundSecondary: Color { p.surface }
     static var backgroundTertiary: Color { p.surface }
+    static var surface: Color { p.surface }
     static var cardSolid: Color { p.surface }
 
-    // Glass
-    static var glassTint: Color { p.glassTint }
+    // Surfaces / glass (solid for smooth scrolling)
     static var glassBackground: Color { p.surface }
     static var glassBorder: Color { p.border }
     static var glassHighlight: Color { isLight ? Color.white.opacity(0.9) : Color.white.opacity(0.12) }
@@ -192,7 +139,6 @@ struct AppTheme {
     static var selectedControlBackground: Color { p.accent.opacity(isLight ? 0.14 : 0.26) }
     static var ringTrack: Color { p.ringTrack }
     static var shadow: Color { p.shadow }
-    static var cardShadow: Color { p.shadow.opacity(isLight ? 0.7 : 0.8) }
     static var onAccent: Color { Color.white }
 
     // Text
@@ -200,7 +146,7 @@ struct AppTheme {
     static var textSecondary: Color { p.textSecondary }
     static var textTertiary: Color { p.textTertiary }
 
-    // Accent colors (semantic — harmonised per theme)
+    // Accent colors (semantic — harmonised)
     static var accent: Color { p.accent }
     static var accentSecondary: Color { p.accentSecondary }
     static var accentBlue: Color { p.accent }
@@ -225,7 +171,7 @@ struct AppTheme {
     }
 }
 
-// MARK: - Liquid Glass Card
+// MARK: - Card (solid, lightweight — no real-time blur for smooth scrolling)
 
 struct GlassCard: ViewModifier {
     var padding: CGFloat = 16
@@ -234,13 +180,12 @@ struct GlassCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(AppTheme.glassTint, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(AppTheme.glassBorder, lineWidth: 0.8)
             )
-            .shadow(color: AppTheme.cardShadow, radius: 16, x: 0, y: 10)
     }
 }
 
@@ -249,16 +194,28 @@ extension View {
         modifier(GlassCard(padding: padding, radius: radius))
     }
 
-    /// Floating glass treatment for bars (nav bar, mode switcher).
+    /// Floating solid treatment for bars (nav bar, mode switcher). Only the nav
+    /// gets a soft shadow so it reads as floating without a heavy halo "bar".
     func floatingGlass(cornerRadius: CGFloat, strong: Bool = false) -> some View {
         self
-            .background(AppTheme.glassTint, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(AppTheme.glassBorder, lineWidth: 0.8)
             )
-            .shadow(color: AppTheme.cardShadow, radius: strong ? 20 : 12, x: 0, y: strong ? 12 : 6)
+            .shadow(color: strong ? AppTheme.shadow.opacity(0.45) : .clear,
+                    radius: strong ? 12 : 0, x: 0, y: strong ? 5 : 0)
+    }
+}
+
+// MARK: - Button press feedback
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

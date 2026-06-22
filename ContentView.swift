@@ -32,7 +32,9 @@ struct ContentView: View {
                     .padding(.horizontal, screenPadding)
                     .padding(.bottom, 8)
 
-                    // Main content area
+                    // Main content area — the nav floats OVER this via safeAreaInset,
+                    // so content scrolls underneath it instead of being clipped in a
+                    // hard line right above the menu (which read as a "bar").
                     ZStack {
                         switch selectedTab {
                         case .startseite:
@@ -52,11 +54,11 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    // Floating bottom navigation
-                    BottomNavBarView(selectedTab: $selectedTab, mode: selectedMode)
-                        .padding(.horizontal, screenPadding + 6)
-                        .padding(.bottom, 6)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        BottomNavBarView(selectedTab: $selectedTab, mode: selectedMode)
+                            .padding(.horizontal, screenPadding + 6)
+                            .padding(.bottom, 6)
+                    }
                 }
             }
         }

@@ -86,6 +86,14 @@ struct HabitsView: View {
                     AddButton { showingAdd = true }
                 }
                 ProgressBar(progress: progress)
+                if let best = store.habits.map(\.streak).max(), best > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flame.fill").font(.system(size: 11)).foregroundColor(AppTheme.accentAmber)
+                        Text("Beste Serie: \(best) \(best == 1 ? "Tag" : "Tage")")
+                            .font(.system(size: 12, weight: .medium)).foregroundColor(AppTheme.textSecondary)
+                        Spacer()
+                    }
+                }
             }
             .glassCard()
 
@@ -374,6 +382,15 @@ struct WithdrawalCard: View {
     let onEdit: () -> Void
     @EnvironmentObject var store: DataStore
 
+    private let milestones = [7, 14, 30, 60, 90, 180, 365]
+    private var nextMilestone: Int? { milestones.first { $0 > item.cleanDays() } }
+    private var milestoneProgress: Double {
+        guard let next = nextMilestone else { return 1 }
+        let prev = milestones.last { $0 <= item.cleanDays() } ?? 0
+        let span = Double(next - prev)
+        return span <= 0 ? 0 : Double(item.cleanDays() - prev) / span
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
@@ -393,6 +410,28 @@ struct WithdrawalCard: View {
                     Text(item.cleanDays() == 1 ? "Tag" : "Tage")
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textTertiary)
+                }
+            }
+
+            // Milestone progress
+            if let next = nextMilestone {
+                let remaining = next - item.cleanDays()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flag.checkered").font(.system(size: 10)).foregroundColor(AppTheme.accent)
+                        Text("Nächster Meilenstein: \(next) Tage")
+                            .font(.system(size: 11, weight: .medium)).foregroundColor(AppTheme.textTertiary)
+                        Spacer()
+                        Text("noch \(remaining) \(remaining == 1 ? "Tag" : "Tage")")
+                            .font(.system(size: 11, weight: .semibold)).foregroundColor(AppTheme.accent)
+                    }
+                    ProgressBar(progress: milestoneProgress, color: AppTheme.accent)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy.fill").font(.system(size: 11)).foregroundColor(AppTheme.accentAmber)
+                    Text("Alle Meilensteine erreicht – stark!")
+                        .font(.system(size: 11, weight: .semibold)).foregroundColor(AppTheme.accentAmber)
                 }
             }
 
@@ -653,13 +692,15 @@ struct ShoppingSheet: View {
 
 struct ProgressBar: View {
     let progress: Double   // 0...1
+    var color: Color = AppTheme.accentGreen
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 4).fill(AppTheme.ringTrack).frame(height: 6)
-                RoundedRectangle(cornerRadius: 4).fill(AppTheme.accentGreen)
+                RoundedRectangle(cornerRadius: 4).fill(color)
                     .frame(width: max(0, min(1, progress)) * geo.size.width, height: 6)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: progress)
             }
         }
         .frame(height: 6)
