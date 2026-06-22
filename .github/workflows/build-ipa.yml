@@ -8,6 +8,9 @@ on:
 jobs:
   build-ipa:
     runs-on: macos-15
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -167,3 +170,17 @@ jobs:
         with:
           name: HomeUI-unsigned-ipa
           path: HomeUI.ipa
+
+      - name: Create GitHub Release with IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "HomeUI Build #${{ github.run_number }}"
+          body: |
+            Automatischer Build vom ${{ github.sha }}
+
+            **Zum Installieren:** IPA herunterladen → Sideloadly → aufs iPhone spielen.
+          files: HomeUI.ipa
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
