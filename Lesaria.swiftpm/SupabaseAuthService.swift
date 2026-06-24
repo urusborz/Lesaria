@@ -56,9 +56,9 @@ enum SupabaseAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingConfiguration:
-            return "Supabase ist noch nicht konfiguriert."
+            return "Sync ist noch nicht eingerichtet."
         case .invalidProjectURL:
-            return "Die Supabase-Projekt-URL ist ungueltig."
+            return "Die Sync-Adresse ist ungueltig."
         case .confirmationRequired:
             return "Registrierung erstellt. Bitte bestaetige deine E-Mail und melde dich dann an."
         case let .requestFailed(status, message):
@@ -102,7 +102,7 @@ final class SupabaseAuthService {
             ]
         )
         guard let authSession = response.session(fallbackEmail: email) else {
-            throw SupabaseAuthError.requestFailed(200, "Supabase hat keine Session zurueckgegeben.")
+            throw SupabaseAuthError.requestFailed(200, "Der Login hat keine gueltige Sitzung zurueckgegeben.")
         }
         return authSession
     }
@@ -118,7 +118,7 @@ final class SupabaseAuthService {
             ]
         )
         guard let authSession = response.session(fallbackEmail: session.email) else {
-            throw SupabaseAuthError.requestFailed(200, "Supabase hat keine neue Session zurueckgegeben.")
+            throw SupabaseAuthError.requestFailed(200, "Der Sync konnte die Anmeldung nicht erneuern.")
         }
         return authSession
     }

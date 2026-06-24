@@ -49,13 +49,13 @@ enum SupabaseSyncError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingConfiguration:
-            return "Supabase ist noch nicht konfiguriert."
+            return "Sync ist noch nicht eingerichtet."
         case .invalidProjectURL:
-            return "Die Supabase-Projekt-URL ist ungueltig."
+            return "Die Sync-Adresse ist ungueltig."
         case let .requestFailed(status, message):
-            return "Supabase-Request fehlgeschlagen (\(status)): \(message)"
+            return "Sync fehlgeschlagen (\(status)): \(message)"
         case .emptyResponse:
-            return "In Supabase wurde noch kein Sync-Stand gefunden."
+            return "Es wurde noch kein Sync-Stand gefunden."
         }
     }
 }

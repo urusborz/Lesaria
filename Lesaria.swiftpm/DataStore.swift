@@ -473,39 +473,14 @@ class DataStore: ObservableObject {
         guard !isSyncing else { return }
         pendingSupabasePush?.cancel()
         isSyncing = true
-        syncStatusMessage = "Sync: Upload laeuft..."
+        syncStatusMessage = "Sync laeuft..."
         do {
             let snapshot = try await supabaseService().upsertSnapshot(makeBackupPayload())
             lastSupabaseSyncAt = snapshot.updatedAt ?? Date()
             save()
-            syncStatusMessage = "Upload abgeschlossen."
+            syncStatusMessage = "Sync abgeschlossen."
             Haptics.success()
         } catch {
-            syncStatusMessage = error.localizedDescription
-            Haptics.warning()
-        }
-        isSyncing = false
-    }
-
-    @MainActor
-    private func runSupabasePull() async {
-        await refreshSessionIfNeeded()
-        guard SupabaseConfig.isConfigured, authSession != nil else { return }
-        guard !isSyncing else { return }
-        isSyncing = true
-        syncStatusMessage = "Sync: Download laeuft..."
-        do {
-            let snapshot = try await supabaseService().fetchSnapshot()
-            isApplyingRemoteSnapshot = true
-            applyBackupPayload(snapshot.payload)
-            lastSupabaseSyncAt = snapshot.updatedAt ?? Date()
-            save()
-            isApplyingRemoteSnapshot = false
-            bootstrapNotifications()
-            syncStatusMessage = "Download abgeschlossen."
-            Haptics.success()
-        } catch {
-            isApplyingRemoteSnapshot = false
             syncStatusMessage = error.localizedDescription
             Haptics.warning()
         }
