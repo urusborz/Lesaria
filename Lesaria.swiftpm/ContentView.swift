@@ -228,7 +228,7 @@ struct BottomNavBarView: View {
         }
         .padding(.vertical, 9)
         .padding(.horizontal, 8)
-        .floatingGlass(cornerRadius: 30, strong: true)
+        .liquidTabBarGlass(cornerRadius: 30)
     }
 }
 
@@ -254,13 +254,37 @@ struct TabBarButtonView: View {
             .background(
                 Group {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(AppTheme.accent)
-                            .shadow(color: AppTheme.accent.opacity(0.35), radius: 8, x: 0, y: 3)
+                        LiquidSelectedTabBackground()
                     }
                 }
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct LiquidSelectedTabBackground: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.thinMaterial)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(AppTheme.accent.opacity(AppTheme.isLight ? 0.62 : 0.50))
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(AppTheme.isLight ? 0.42 : 0.24),
+                    Color.white.opacity(0.04),
+                    AppTheme.accentSecondary.opacity(AppTheme.isLight ? 0.18 : 0.26)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(AppTheme.isLight ? 0.44 : 0.24), lineWidth: 0.8)
+        )
+        .shadow(color: AppTheme.accent.opacity(AppTheme.isLight ? 0.22 : 0.34), radius: 10, x: 0, y: 4)
+        .padding(2)
     }
 }

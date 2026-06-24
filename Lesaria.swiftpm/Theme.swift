@@ -408,6 +408,76 @@ struct GlassCard: ViewModifier {
     }
 }
 
+struct LiquidTabBarGlass: ViewModifier {
+    let cornerRadius: CGFloat
+    @State private var sheen = false
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(AppTheme.isLight ? Color.white.opacity(0.30) : Color.white.opacity(0.075))
+
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(AppTheme.isLight ? 0.58 : 0.20),
+                            Color.white.opacity(0.05),
+                            AppTheme.accent.opacity(AppTheme.isLight ? 0.10 : 0.22)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+
+                    RadialGradient(
+                        colors: [
+                            AppTheme.accentSecondary.opacity(AppTheme.isLight ? 0.20 : 0.30),
+                            Color.clear
+                        ],
+                        center: .bottomTrailing,
+                        startRadius: 8,
+                        endRadius: 180
+                    )
+                    .blendMode(.screen)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(AppTheme.isLight ? 0.82 : 0.34),
+                                AppTheme.glassBorder,
+                                AppTheme.accent.opacity(AppTheme.isLight ? 0.24 : 0.36)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .overlay(alignment: .topLeading) {
+                Capsule()
+                    .fill(Color.white.opacity(AppTheme.isLight ? 0.62 : 0.28))
+                    .frame(width: 90, height: 2)
+                    .blur(radius: 1.2)
+                    .offset(x: sheen ? 160 : 18, y: 7)
+                    .opacity(0.75)
+            }
+            .shadow(color: AppTheme.shadow.opacity(AppTheme.isLight ? 0.24 : 0.50), radius: 22, x: 0, y: 10)
+            .shadow(color: AppTheme.accent.opacity(AppTheme.isLight ? 0.08 : 0.18), radius: 18, x: 0, y: 2)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 5.4).repeatForever(autoreverses: true)) {
+                    sheen = true
+                }
+            }
+    }
+}
+
 extension View {
     func glassCard(padding: CGFloat = 16, radius: CGFloat = AppTheme.radiusLarge) -> some View {
         modifier(GlassCard(padding: padding, radius: radius))
@@ -425,6 +495,10 @@ extension View {
             )
             .shadow(color: strong ? AppTheme.shadow.opacity(0.45) : .clear,
                     radius: strong ? 12 : 0, x: 0, y: strong ? 5 : 0)
+    }
+
+    func liquidTabBarGlass(cornerRadius: CGFloat) -> some View {
+        modifier(LiquidTabBarGlass(cornerRadius: cornerRadius))
     }
 }
 
