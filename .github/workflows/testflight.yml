@@ -191,7 +191,9 @@ jobs:
           test -f "$APP_DIR/Assets.car"
           test -d "$APP_DIR/LaunchScreen.storyboardc"
 
-          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" | grep -qx "$GITHUB_RUN_NUMBER"
+          BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST")"
+          echo "Exported CFBundleVersion: $BUNDLE_VERSION"
+          test "$BUNDLE_VERSION" = "$GITHUB_RUN_NUMBER"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
