@@ -104,6 +104,14 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Pin generated build number
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" build/ci_source/Info.plist
+          perl -0pi -e 's/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = '"${GITHUB_RUN_NUMBER}"';/g' Lesaria.xcodeproj/project.pbxproj
+          GENERATED_BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" build/ci_source/Info.plist)"
+          echo "Generated Info.plist CFBundleVersion: $GENERATED_BUNDLE_VERSION"
+
       - name: Create export options
         run: |
           cat > ExportOptions.plist <<EOF
