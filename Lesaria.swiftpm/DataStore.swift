@@ -549,8 +549,7 @@ class DataStore: ObservableObject {
     }
 
     private func loadAuthSession() {
-        guard let storedData = try? KeychainStore.load(service: keychainService, account: authSessionKey),
-              let data = storedData,
+        guard let data = try? KeychainStore.load(service: keychainService, account: authSessionKey),
               let session = try? JSONDecoder().decode(AppleAccountSession.self, from: data) else {
             authSession = nil
             return
