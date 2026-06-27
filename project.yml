@@ -23,14 +23,36 @@ targets:
         excludes:
           - Package.swift
           - Lesaria.entitlements
-    resources:
       - path: build/ci_source/Assets.xcassets
+        buildPhase: resources
       - path: build/ci_source/LaunchScreen.storyboard
+        buildPhase: resources
       - path: build/ci_source/PrivacyInfo.xcprivacy
+        buildPhase: resources
     entitlements:
       path: build/ci_source/Lesaria.entitlements
     info:
       path: build/ci_source/Info.plist
+      properties:
+        CFBundleIconName: AppIcon
+        CFBundleIcons:
+          CFBundlePrimaryIcon:
+            CFBundleIconName: AppIcon
+        CFBundleIcons~ipad:
+          CFBundlePrimaryIcon:
+            CFBundleIconName: AppIcon
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchStoryboardName: LaunchScreen
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.urusborz.lesaria

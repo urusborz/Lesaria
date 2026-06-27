@@ -158,11 +158,62 @@ jobs:
             -exportPath build/export \
             -exportOptionsPlist ExportOptions.plist
 
+      - name: Verify exported bundle metadata
+        run: |
+          set -euo pipefail
+          IPA_PATH="$(find build/export -maxdepth 1 -name '*.ipa' | head -n 1)"
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA found in build/export"
+            exit 1
+          fi
+
+          INSPECT_DIR="$RUNNER_TEMP/lesaria-ipa-inspect"
+          rm -rf "$INSPECT_DIR"
+          mkdir -p "$INSPECT_DIR"
+          unzip -q "$IPA_PATH" -d "$INSPECT_DIR"
+
+          APP_DIR="$INSPECT_DIR/Payload/Lesaria.app"
+          INFO_PLIST="$APP_DIR/Info.plist"
+          test -f "$INFO_PLIST"
+          test -f "$APP_DIR/Assets.car"
+          test -d "$APP_DIR/LaunchScreen.storyboardc"
+
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" | grep -qx "AppIcon"
+          /usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$INFO_PLIST" | grep -qx "LaunchScreen"
+          /usr/libexec/PlistBuddy -c "Print :UISupportedInterfaceOrientations" "$INFO_PLIST" | grep -q "UIInterfaceOrientationPortraitUpsideDown"
+          /usr/libexec/PlistBuddy -c "Print :UISupportedInterfaceOrientations" "$INFO_PLIST" | grep -q "UIInterfaceOrientationLandscapeLeft"
+          /usr/libexec/PlistBuddy -c "Print :UISupportedInterfaceOrientations" "$INFO_PLIST" | grep -q "UIInterfaceOrientationLandscapeRight"
+          echo "Exported IPA metadata is ready for App Store validation."
+
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: Lesaria-TestFlight-IPA
           path: build/export/*.ipa
+
+      - name: Validate IPA with App Store Connect
+        run: |
+          set -euo pipefail
+          IPA_PATH="$(find build/export -maxdepth 1 -name '*.ipa' | head -n 1)"
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA found in build/export"
+            exit 1
+          fi
+          set +e
+          OUTPUT="$(xcrun altool \
+            --validate-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" 2>&1)"
+          STATUS=$?
+          set -e
+          echo "$OUTPUT"
+          if [ "$STATUS" -ne 0 ] || echo "$OUTPUT" | grep -Eqi "Validation failed|ERROR:"; then
+            exit 1
+          fi
 
       - name: Upload to TestFlight
         run: |
@@ -172,9 +223,16 @@ jobs:
             echo "No IPA found in build/export"
             exit 1
           fi
-          xcrun altool \
+          set +e
+          OUTPUT="$(xcrun altool \
             --upload-app \
             --type ios \
             --file "$IPA_PATH" \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" 2>&1)"
+          STATUS=$?
+          set -e
+          echo "$OUTPUT"
+          if [ "$STATUS" -ne 0 ] || echo "$OUTPUT" | grep -Eqi "Validation failed|ERROR:"; then
+            exit 1
+          fi
