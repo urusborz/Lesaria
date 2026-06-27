@@ -21,6 +21,7 @@ targets:
         includes:
           - "*.swift"
         excludes:
+          - Package.swift
           - Lesaria.entitlements
     resources:
       - path: build/ci_source/Assets.xcassets

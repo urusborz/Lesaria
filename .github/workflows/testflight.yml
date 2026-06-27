@@ -94,7 +94,7 @@ jobs:
           set -euo pipefail
           rm -rf build/ci_source
           mkdir -p build/ci_source
-          cp Lesaria.swiftpm/*.swift build/ci_source/
+          find Lesaria.swiftpm -maxdepth 1 -name '*.swift' ! -name 'Package.swift' -exec cp {} build/ci_source/ \;
           cp Lesaria.swiftpm/Info.plist build/ci_source/Info.plist
           cp Lesaria.swiftpm/Lesaria.entitlements build/ci_source/Lesaria.entitlements
           cp Lesaria.swiftpm/PrivacyInfo.xcprivacy build/ci_source/PrivacyInfo.xcprivacy
